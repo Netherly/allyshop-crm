@@ -118,32 +118,57 @@ export function OrderCard() {
     loadOrder();
   }, [loadOrder]);
 
-  // Автоподстановка цены при выборе позиции в конструкторе.
+  // Автоподстановка цены при выборе товара в конструкторе (для наборов цена не нужна — раскладываются).
   useEffect(() => {
-    if (!builderPick) return;
-    defaultPrice(builderType, builderPick.id, orderType).then((p) => setBuilderPrice(String(p)));
+    if (!builderPick || builderType === 'set') return;
+    defaultPrice('product', builderPick.id, orderType).then((p) => setBuilderPrice(String(p)));
   }, [builderPick, builderType, orderType]);
 
-  function addLine() {
+  async function addLine() {
     if (!builderPick) return;
-    setLines([
-      ...lines,
-      {
+    const setQty = Number(builderQty) || 1;
+
+    if (builderType === 'set') {
+      // Набор разворачиваем в отдельные товарные строки, чтобы можно было убрать любой из них.
+      const s = (await api.get(`/sets/${builderPick.id}`)).data;
+      type SetItem = { quantity: number; product: { id: number; name: string; size?: string; wholesale_price: string; retail_price: string } };
+      const newLines: DraftLine[] = (s.set_items ?? []).map((si: SetItem) => ({
         key: `${Date.now()}-${Math.random()}`,
-        item_type: builderType,
-        ref_id: builderPick.id,
-        label: builderPick.label,
-        quantity: Number(builderQty) || 1,
-        price: builderPrice || '0',
-      },
-    ]);
+        item_type: 'product' as const,
+        ref_id: si.product.id,
+        label: [si.product.name, si.product.size && 'р.' + si.product.size].filter(Boolean).join(' · '),
+        quantity: si.quantity * setQty,
+        price: String(Number(orderType === 'опт' ? si.product.wholesale_price : si.product.retail_price)),
+      }));
+      setLines((prev) => [...prev, ...newLines]);
+    } else {
+      setLines((prev) => [
+        ...prev,
+        {
+          key: `${Date.now()}-${Math.random()}`,
+          item_type: 'product',
+          ref_id: builderPick.id,
+          label: builderPick.label,
+          quantity: setQty,
+          price: builderPrice || '0',
+        },
+      ]);
+    }
+
     setBuilderPick(null);
     setBuilderQty('1');
     setBuilderPrice('');
   }
 
   function removeLine(key: string) {
-    setLines(lines.filter((l) => l.key !== key));
+    setLines((prev) => prev.filter((l) => l.key !== key));
+  }
+
+  // Уменьшить количество позиции на 1; если дошло до 0 — удаляем строку.
+  function decrementLine(key: string) {
+    setLines((prev) =>
+      prev.map((l) => (l.key === key ? { ...l, quantity: l.quantity - 1 } : l)).filter((l) => l.quantity > 0),
+    );
   }
 
   // После списания со склада состав менять нельзя.
@@ -335,13 +360,24 @@ export function OrderCard() {
                   <td>{formatMoney(Number(l.price) * l.quantity)}</td>
                   <td>
                     {!writtenOff && (
-                      <button
-                        type="button"
-                        className="btn btn--sm btn--danger"
-                        onClick={() => removeLine(l.key)}
-                      >
-                        ×
-                      </button>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button
+                          type="button"
+                          className="btn btn--sm"
+                          onClick={() => decrementLine(l.key)}
+                          title="Убрать 1 штуку"
+                        >
+                          −
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--sm btn--danger"
+                          onClick={() => removeLine(l.key)}
+                          title="Удалить позицию целиком"
+                        >
+                          ×
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -388,14 +424,16 @@ export function OrderCard() {
               value={builderQty}
               onChange={(e) => setBuilderQty(e.target.value)}
             />
-            <input
-              className="input"
-              style={{ width: 100 }}
-              type="number"
-              placeholder="цена"
-              value={builderPrice}
-              onChange={(e) => setBuilderPrice(e.target.value)}
-            />
+            {builderType === 'product' && (
+              <input
+                className="input"
+                style={{ width: 100 }}
+                type="number"
+                placeholder="цена"
+                value={builderPrice}
+                onChange={(e) => setBuilderPrice(e.target.value)}
+              />
+            )}
             <button type="button" className="btn" onClick={addLine} disabled={!builderPick}>
               Добавить
             </button>

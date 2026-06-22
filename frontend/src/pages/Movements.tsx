@@ -162,6 +162,7 @@ export function Movements() {
               <input
                 className="input"
                 type="number"
+                min="1"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
               />
@@ -177,6 +178,7 @@ export function Movements() {
                 <input
                   className="input"
                   type="number"
+                  min="0"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                 />
