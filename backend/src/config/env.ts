@@ -15,11 +15,13 @@ export const env = {
   databaseUrl: required('DATABASE_URL', 'postgresql://crm:crm@localhost:5432/allyshop'),
   jwtSecret: required('JWT_SECRET', 'dev-secret'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
-  // CORS_ORIGIN может содержать несколько origin через запятую.
-  corsOrigins: (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean),
+  // CORS_ORIGIN: '*' — разрешить всё, иначе список через запятую.
+  corsOrigins: process.env.CORS_ORIGIN === '*'
+    ? '*'
+    : (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
   // Папка для загруженных файлов (монтируется на постоянный volume).
   uploadDir: path.resolve(process.cwd(), process.env.UPLOAD_DIR ?? 'uploads'),
 };
