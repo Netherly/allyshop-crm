@@ -1,0 +1,24 @@
+node_modules/
+dist/
+build/
+coverage/
+
+# окружение
+.env
+*.env
+!*.env.example
+
+# логи
+*.log
+npm-debug.log*
+
+# редакторы / ос
+.DS_Store
+.idea/
+.vscode/
+
+# prisma
+backend/prisma/*.db
+
+# загруженные файлы
+backend/uploads/

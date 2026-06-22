@@ -1,0 +1,283 @@
+// Схема БД allyshop-crm.
+// Имена таблиц/полей — английские (как в ТЗ). Денежные поля — Decimal(12,2).
+// Статусы и типы со значениями на русском хранятся как String, допустимые значения
+// валидируются в коде (Zod) — это удобнее эволюционировать, чем enum с кириллицей.
+
+generator client {
+  provider      = "prisma-client-js"
+  // native — для локали/Docker; rhel — для serverless-runtime Vercel
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Роль — фиксированная и влияет на доступ, поэтому держим enum на уровне БД.
+enum Role {
+  user
+  super_admin
+}
+
+// Пользователи CRM
+model User {
+  id            Int      @id @default(autoincrement())
+  full_name     String
+  login         String   @unique
+  password_hash String
+  role          Role     @default(user)
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  orders               Order[]
+  stock_movements      StockMovement[]
+  finance_transactions FinanceTransaction[]
+  audit_logs           AuditLog[]
+
+  @@map("users")
+}
+
+// Товары/SKU. Размер — часть товара. Уникальность по article+color+model+size.
+model Product {
+  id              Int      @id @default(autoincrement())
+  name            String
+  article         String?
+  barcode         String?
+  color           String?
+  model           String?
+  size            String?
+  comment         String?
+  photo_url       String?
+  cost_price      Decimal  @default(0) @db.Decimal(12, 2)
+  wholesale_price Decimal  @default(0) @db.Decimal(12, 2)
+  retail_price    Decimal  @default(0) @db.Decimal(12, 2)
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  set_items             SetItem[]
+  order_items           OrderItem[]
+  order_item_components OrderItemComponent[]
+  stock_movements       StockMovement[]
+
+  @@unique([article, color, model, size])
+  @@map("products")
+}
+
+// Наборы/ростовки — шаблон состава, не складская позиция.
+model Set {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  set_items       SetItem[]
+  order_items     OrderItem[]
+  stock_movements StockMovement[]
+
+  @@map("sets")
+}
+
+// Состав набора: какой товар и сколько штук входит.
+model SetItem {
+  id         Int @id @default(autoincrement())
+  set_id     Int
+  product_id Int
+  quantity   Int
+
+  set     Set     @relation(fields: [set_id], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [product_id], references: [id])
+
+  @@index([set_id])
+  @@index([product_id])
+  @@map("set_items")
+}
+
+// Клиенты и контрагенты (одна сущность с типом).
+model Client {
+  id                Int      @id @default(autoincrement())
+  name              String
+  phone             String?
+  email             String?
+  instagram         String?
+  city              String?
+  np_branch         String?
+  counterparty_type String   @default("client") // client | supplier | both | other
+  client_type       String? // опт | дроп | розница | другое
+  comment           String?
+  is_active         Boolean  @default(true)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  orders          Order[]
+  stock_movements StockMovement[]
+
+  @@map("clients")
+}
+
+// Заказ — центральная сущность.
+model Order {
+  id                Int      @id @default(autoincrement())
+  order_number      String   @unique
+  source            String? // Instagram | сайт | Telegram | вручную | маркетплейс | другое
+  order_type        String // опт | дроп | розница
+  order_date        DateTime @default(now())
+  status            String   @default("Новый")
+  payment_status    String   @default("Не оплачен")
+  tags              String?
+  manager_id        Int
+  client_id         Int?
+  total_amount      Decimal  @default(0) @db.Decimal(12, 2)
+  discount_amount   Decimal  @default(0) @db.Decimal(12, 2)
+  discount_percent  Decimal  @default(0) @db.Decimal(5, 2)
+  paid_amount       Decimal  @default(0) @db.Decimal(12, 2)
+  comment           String?
+  stock_written_off Boolean  @default(false)
+  stock_returned    Boolean  @default(false)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  manager User    @relation(fields: [manager_id], references: [id])
+  client  Client? @relation(fields: [client_id], references: [id])
+
+  order_items          OrderItem[]
+  stock_movements      StockMovement[]
+  finance_transactions FinanceTransaction[]
+  delivery             OrderDelivery?
+
+  @@index([client_id])
+  @@index([manager_id])
+  @@map("orders")
+}
+
+// Строка заказа: отдельный товар или набор. Снимок данных на момент продажи.
+model OrderItem {
+  id         Int     @id @default(autoincrement())
+  order_id   Int
+  item_type  String // product | set
+  product_id Int?
+  set_id     Int?
+  name       String
+  article    String?
+  barcode    String?
+  color      String?
+  model      String?
+  size       String?
+  quantity   Int
+  price      Decimal @db.Decimal(12, 2)
+  total      Decimal @db.Decimal(12, 2)
+  cost_price Decimal @default(0) @db.Decimal(12, 2)
+
+  order   Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [product_id], references: [id])
+  set     Set?     @relation(fields: [set_id], references: [id])
+
+  components OrderItemComponent[]
+
+  @@index([order_id])
+  @@map("order_items")
+}
+
+// Фактические товары внутри строки-набора (для склада).
+model OrderItemComponent {
+  id            Int     @id @default(autoincrement())
+  order_item_id Int
+  product_id    Int
+  quantity      Int
+  cost_price    Decimal @default(0) @db.Decimal(12, 2)
+
+  order_item OrderItem @relation(fields: [order_item_id], references: [id], onDelete: Cascade)
+  product    Product   @relation(fields: [product_id], references: [id])
+
+  @@index([order_item_id])
+  @@map("order_item_components")
+}
+
+// Складские движения. Остаток считается из них (а не отдельным полем).
+model StockMovement {
+  id              Int      @id @default(autoincrement())
+  movement_date   DateTime @default(now())
+  movement_type   String // приход | расход | продажа | возврат | корректировка_плюс | корректировка_минус
+  product_id      Int?
+  set_id          Int?
+  quantity        Int
+  price           Decimal  @default(0) @db.Decimal(12, 2)
+  total           Decimal  @default(0) @db.Decimal(12, 2)
+  counterparty_id Int?
+  order_id        Int?
+  description     String?
+  user_id         Int
+  created_at      DateTime @default(now())
+
+  product      Product? @relation(fields: [product_id], references: [id])
+  set          Set?     @relation(fields: [set_id], references: [id])
+  counterparty Client?  @relation(fields: [counterparty_id], references: [id])
+  order        Order?   @relation(fields: [order_id], references: [id])
+  user         User     @relation(fields: [user_id], references: [id])
+
+  @@index([product_id])
+  @@index([order_id])
+  @@map("stock_movements")
+}
+
+// Финансовые операции. Статус оплаты заказа считается по подтверждённым операциям.
+model FinanceTransaction {
+  id           Int      @id @default(autoincrement())
+  date_time    DateTime @default(now())
+  order_id     Int?
+  order_number String?
+  payment_type String // предоплата | полная оплата | доплата | возврат клиенту | расход | другое
+  amount       Decimal  @db.Decimal(12, 2)
+  comment      String?
+  status       String   @default("Подтверждена")
+  user_id      Int
+  created_at   DateTime @default(now())
+
+  order Order? @relation(fields: [order_id], references: [id])
+  user  User   @relation(fields: [user_id], references: [id])
+
+  @@index([order_id])
+  @@map("finance_transactions")
+}
+
+// Данные доставки Новой Почтой — отдельно от клиента (получатель может отличаться).
+model OrderDelivery {
+  id              Int      @id @default(autoincrement())
+  order_id        Int      @unique
+  recipient_name  String?
+  recipient_phone String?
+  city            String?
+  branch          String?
+  ttn             String?
+  delivery_payer  String? // клиент | компания
+  delivery_cost   Decimal  @default(0) @db.Decimal(12, 2)
+  delivery_status String?
+  np_raw_status   String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  order Order @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@map("order_delivery")
+}
+
+// История критичных действий.
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  user_id     Int?
+  entity_type String // orders | products | clients | stock | finance
+  entity_id   Int
+  action      String // created | updated | deleted | status_changed | payment_added | stock_written_off
+  old_value   Json?
+  new_value   Json?
+  created_at  DateTime @default(now())
+
+  user User? @relation(fields: [user_id], references: [id])
+
+  @@index([entity_type, entity_id])
+  @@map("audit_log")
+}
