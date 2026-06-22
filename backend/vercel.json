@@ -2,8 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npx prisma generate",
   "outputDirectory": ".",
-  "outputFileTracingIncludes": {
-    "api/index": ["./node_modules/.prisma/**/*"]
-  },
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
+"rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
 }
