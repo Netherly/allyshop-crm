@@ -32,7 +32,15 @@ interface DashboardData {
   to_pay: number;
   status_breakdown: { status: string; count: number }[];
   source_breakdown: { source: string; count: number }[];
-  low_stock: { id: number; name: string; article: string | null; size: string | null; stock: number }[];
+  low_stock: {
+    id: number;
+    name: string;
+    article: string | null;
+    size: string | null;
+    color: string | null;
+    model: string | null;
+    stock: number;
+  }[];
   recent_orders: {
     id: number;
     order_number: string;

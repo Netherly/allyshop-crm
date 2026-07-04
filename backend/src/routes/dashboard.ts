@@ -76,7 +76,7 @@ router.get(
       }),
       prisma.product.findMany({
         where: { is_active: true },
-        select: { id: true, name: true, article: true, size: true },
+        select: { id: true, name: true, article: true, size: true, color: true, model: true },
       }),
     ]);
 
