@@ -3,7 +3,7 @@ import { useAuth } from '@/lib/auth';
 
 // Разделы меню. Поле superAdmin — пункт виден только супер-админу.
 const navItems = [
-  { to: '/', label: 'Рабочий стол' },
+  { to: '/', label: 'Дашборд' },
   { to: '/warehouse', label: 'Склад' },
   { to: '/clients', label: 'Клиенты' },
   { to: '/orders', label: 'Заказы' },

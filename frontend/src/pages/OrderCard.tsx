@@ -291,7 +291,7 @@ export function OrderCard() {
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="form-grid">
             <div className="field">
-              <label className="field__label">Клиент</label>
+              <label className="field__label">Клиент (необязательно)</label>
               <ClientPicker value={client} onChange={setClient} />
             </div>
             <div className="field">

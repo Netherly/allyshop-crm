@@ -142,10 +142,13 @@ export interface OrderListItem {
   status: string;
   payment_status: string;
   total_amount: string;
+  order_date: string;
   created_at: string;
+  tags: string | null;
+  comment: string | null;
   items_count: number;
   client?: { name: string } | null;
-  manager?: { full_name: string };
+  manager?: { full_name: string; role: Role };
 }
 
 export interface StockMovement {
@@ -160,7 +163,14 @@ export interface StockMovement {
   counterparty_id: number | null;
   order_id: number | null;
   description: string | null;
-  product: { name: string; article: string | null; size: string | null } | null;
+  product: {
+    id: number;
+    name: string;
+    article: string | null;
+    size: string | null;
+    color: string | null;
+    model: string | null;
+  } | null;
   set: { name: string } | null;
   user: { full_name: string } | null;
   counterparty: { name: string } | null;

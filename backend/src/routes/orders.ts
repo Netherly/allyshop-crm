@@ -34,7 +34,7 @@ router.get(
         where,
         include: {
           client: { select: { name: true } },
-          manager: { select: { full_name: true } },
+          manager: { select: { full_name: true, role: true } },
           _count: { select: { order_items: true } },
         },
         orderBy: { id: 'desc' },

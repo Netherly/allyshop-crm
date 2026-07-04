@@ -227,6 +227,12 @@ a {
   border-color: var(--accent);
 }
 
+/* Поле только для чтения (например, товар из набора при правке движения) */
+.input--readonly {
+  background: var(--canvas);
+  color: var(--text-muted);
+}
+
 .form-error {
   color: var(--red);
   font-size: 13px;
@@ -285,6 +291,85 @@ a {
 .badge--gray {
   background: #e2e8f0;
   color: #475569;
+}
+
+/* Список тегов-чипсов в таблице */
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Кликабельный тег (клик — удалить) */
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: #e0e7ff;
+  color: #3730a3;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tag-chip:hover {
+  background: #fee2e2;
+  color: var(--red);
+}
+
+.tag-chip__x {
+  font-weight: 700;
+  opacity: 0.6;
+}
+
+.tag-chip:hover .tag-chip__x {
+  opacity: 1;
+}
+
+/* Кнопка «+» для добавления тега */
+.tag-add {
+  width: 20px;
+  height: 20px;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+  font-size: 14px;
+}
+
+.tag-add:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Инлайн-поле ввода нового тега */
+.tag-input {
+  width: 120px;
+  padding: 2px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  font-size: 12px;
+  outline: none;
+}
+
+/* Ячейка комментария: текст + кнопка правки */
+.comment-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Обрезка длинного текста в ячейке (комментарий) */
+.cell-clip {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Шапка раздела */

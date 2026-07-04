@@ -24,6 +24,51 @@ interface MovementInput {
   order_id?: number | null;
 }
 
+interface UpdateInput {
+  product_id?: number;
+  quantity?: number;
+  price?: number;
+  description?: string | null;
+  movement_date?: Date;
+}
+
+// Правит существующее движение. Остаток пересчитывается из движений автоматически,
+// поэтому после правки просто проверяем, что затронутые товары не ушли в минус.
+export async function updateMovement(id: number, input: UpdateInput, _userId: number) {
+  const existing = await prisma.stockMovement.findUnique({ where: { id } });
+  if (!existing) throw new AppError(404, 'Движение не найдено');
+  if (existing.order_id) {
+    throw new AppError(409, 'Движение относится к заказу — правьте через заказ');
+  }
+
+  const quantity = input.quantity ?? existing.quantity;
+  const price = input.price ?? Number(existing.price);
+  const productId = input.product_id ?? existing.product_id;
+
+  return prisma.$transaction(async (tx) => {
+    await tx.stockMovement.update({
+      where: { id },
+      data: {
+        product_id: productId,
+        quantity,
+        price,
+        total: price * quantity,
+        description: input.description !== undefined ? input.description : existing.description,
+        movement_date: input.movement_date ?? existing.movement_date,
+      },
+    });
+
+    // Затронутые товары: старый и новый (если менялся) — ни один не должен уйти в минус.
+    const affected = [...new Set([existing.product_id, productId].filter((x): x is number => x != null))];
+    const stock = await getStockMap(affected, tx);
+    if (affected.some((pid) => (stock.get(pid) ?? 0) < 0)) {
+      throw new AppError(409, 'Правка приведёт к отрицательному остатку');
+    }
+
+    return tx.stockMovement.findUnique({ where: { id } });
+  });
+}
+
 // Создаёт движение(я). Набор раскладывается на товары; для расходных типов проверяется остаток.
 export async function createManualMovement(input: MovementInput, userId: number) {
   let items: { product_id: number; quantity: number; price: number }[];

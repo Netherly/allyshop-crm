@@ -34,7 +34,9 @@
       "Bash(echo \"EXIT $?\")",
       "Bash(grep -iA8 \"error\\\\|prisma\\\\|invalid\")",
       "Bash(grep -iB1 -A6 \"PrismaClient\\\\|logAudit\\\\|audit\\\\|Argument\\\\|Unknown\\\\|null constraint\\\\|Invalid\")",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "PowerShell(cd \"C:\\\\Users\\\\pinkj\\\\Desktop\\\\allyshop-crm\\\\backend\"; $env:DATABASE_URL=\"postgresql://neondb_owner:npg_HqYDLB0IW1RX@ep-super-boat-asmnbk83.c-4.eu-central-1.aws.neon.tech/neondb?sslmode=require\"; npx prisma migrate deploy 2>&1)",
+      "Bash(cd /c/Users/pinkj/Desktop/ozon_bot_v2 && cat requirements.txt 2>/dev/null | grep -i google)"
     ]
   }
 }

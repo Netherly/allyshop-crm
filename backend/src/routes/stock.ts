@@ -3,8 +3,8 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth } from '../middleware/auth.js';
-import { manualMovementSchema } from '../schemas/movement.js';
-import { createManualMovement } from '../services/stockMovements.js';
+import { manualMovementSchema, updateMovementSchema } from '../schemas/movement.js';
+import { createManualMovement, updateMovement } from '../services/stockMovements.js';
 import { parsePagination, paginated } from '../lib/pagination.js';
 import { logAudit } from '../services/audit.js';
 
@@ -26,7 +26,7 @@ router.get(
       prisma.stockMovement.findMany({
         where,
         include: {
-          product: { select: { name: true, article: true, size: true } },
+          product: { select: { id: true, name: true, article: true, size: true, color: true, model: true } },
           set: { select: { name: true } },
           user: { select: { full_name: true } },
           counterparty: { select: { name: true } },
@@ -65,6 +65,37 @@ router.post(
       newValue: { movement_type: data.movement_type, item_type: data.item_type, quantity: data.quantity },
     });
     res.status(201).json(created);
+  }),
+);
+
+// Правка движения. Корректировки — только супер-админ; движения по заказу править нельзя.
+router.patch(
+  '/movements/:id',
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    const existing = await prisma.stockMovement.findUnique({
+      where: { id },
+      select: { movement_type: true },
+    });
+    if (!existing) {
+      res.status(404).json({ error: 'Движение не найдено' });
+      return;
+    }
+    if (CORRECTIONS.includes(existing.movement_type) && req.user!.role !== 'super_admin') {
+      res.status(403).json({ error: 'Корректировки склада доступны только супер-админу' });
+      return;
+    }
+
+    const data = updateMovementSchema.parse(req.body);
+    const updated = await updateMovement(id, data, req.user!.id);
+    await logAudit({
+      userId: req.user!.id,
+      entityType: 'stock',
+      entityId: id,
+      action: 'updated',
+      newValue: { quantity: data.quantity, price: data.price },
+    });
+    res.json(updated);
   }),
 );
 

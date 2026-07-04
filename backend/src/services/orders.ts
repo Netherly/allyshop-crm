@@ -153,7 +153,7 @@ export async function createOrder(input: CreateInput, managerId: number) {
         order_items: { create: lines },
       },
     });
-    const orderNumber = String(created.id).padStart(5, '0');
+    const orderNumber = String(created.id);
     await tx.order.update({ where: { id: created.id }, data: { order_number: orderNumber } });
 
     await logAudit({

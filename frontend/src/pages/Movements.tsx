@@ -1,7 +1,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatDateTime, formatMoney, getApiError } from '@/lib/format';
+import { formatDateTime, formatMoney, getApiError, productTitle } from '@/lib/format';
 import { ProductPicker, PickedProduct } from '@/components/ProductPicker';
 import { SetPicker } from '@/components/SetPicker';
 import { PickedItem } from '@/components/SearchPicker';
@@ -40,6 +40,14 @@ export function Movements() {
   const [price, setPrice] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
+
+  // Правка существующего движения.
+  const [editing, setEditing] = useState<StockMovement | null>(null);
+  const [editProduct, setEditProduct] = useState<PickedProduct | null>(null);
+  const [editQty, setEditQty] = useState('');
+  const [editPrice, setEditPrice] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editError, setEditError] = useState('');
 
   const load = useCallback(async () => {
     const res = await api.get<Paginated<StockMovement>>('/stock/movements', {
@@ -93,6 +101,35 @@ export function Movements() {
       await load();
     } catch (err) {
       setError(getApiError(err, 'Не удалось создать движение'));
+    }
+  }
+
+  // Открывает правку записи. Товар в наборных движениях менять нельзя (set_id != null).
+  function openEdit(m: StockMovement) {
+    setEditing(m);
+    setEditProduct(m.product ? { id: m.product.id, label: productTitle(m.product) } : null);
+    setEditQty(String(m.quantity));
+    setEditPrice(String(Number(m.price)));
+    setEditDesc(m.description ?? '');
+    setEditError('');
+  }
+
+  async function submitEdit(e: FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    setEditError('');
+    const isSet = editing.set_id != null;
+    try {
+      await api.patch(`/stock/movements/${editing.id}`, {
+        product_id: !isSet ? editProduct?.id : undefined,
+        quantity: Number(editQty),
+        price: !isSet ? Number(editPrice) || 0 : undefined,
+        description: editDesc || null,
+      });
+      setEditing(null);
+      await load();
+    } catch (err) {
+      setEditError(getApiError(err, 'Не удалось сохранить движение'));
     }
   }
 
@@ -211,6 +248,71 @@ export function Movements() {
         </form>
       </Modal>
 
+      <Modal
+        open={!!editing}
+        title="Редактировать движение"
+        width={560}
+        onClose={() => setEditing(null)}
+      >
+        <form onSubmit={submitEdit}>
+          {editError && <div className="form-error">{editError}</div>}
+          {editing?.set_id != null ? (
+            // Наборное движение: товар зафиксирован составом набора.
+            <div className="field">
+              <label className="field__label">Товар (из набора)</label>
+              <div className="input input--readonly">
+                {editing?.product ? productTitle(editing.product) : '—'}
+              </div>
+            </div>
+          ) : (
+            <div className="field">
+              <label className="field__label">Товар</label>
+              <ProductPicker value={editProduct} onChange={setEditProduct} />
+            </div>
+          )}
+          <div className="form-grid">
+            <div className="field">
+              <label className="field__label">Количество</label>
+              <input
+                className="input"
+                type="number"
+                min="1"
+                value={editQty}
+                onChange={(e) => setEditQty(e.target.value)}
+              />
+            </div>
+            {editing?.set_id == null && (
+              <div className="field">
+                <label className="field__label">Цена за единицу</label>
+                <input
+                  className="input"
+                  type="number"
+                  min="0"
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+          <div className="field">
+            <label className="field__label">Комментарий</label>
+            <input
+              className="input"
+              value={editDesc}
+              onChange={(e) => setEditDesc(e.target.value)}
+            />
+          </div>
+          <div className="actions">
+            <button className="btn btn--primary" type="submit">
+              Сохранить
+            </button>
+            <button className="btn" type="button" onClick={() => setEditing(null)}>
+              Отмена
+            </button>
+          </div>
+        </form>
+      </Modal>
+
       <div className="table-scroll">
       <table className="table">
         <thead>
@@ -223,6 +325,7 @@ export function Movements() {
             <th>Сумма</th>
             <th>Кто</th>
             <th>Комментарий</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -232,21 +335,27 @@ export function Movements() {
               <td>{typeBadge(m.movement_type)}</td>
               <td>
                 {m.product
-                  ? [m.product.name, m.product.size && 'р.' + m.product.size]
-                      .filter(Boolean)
-                      .join(' · ')
+                  ? productTitle(m.product)
                   : m.set?.name ?? '—'}
               </td>
               <td>{m.quantity}</td>
               <td>{formatMoney(m.price)}</td>
               <td>{formatMoney(m.total)}</td>
               <td>{m.user?.full_name ?? '—'}</td>
-              <td>{m.description ?? '—'}</td>
+              <td className="cell-clip" title={m.description ?? ''}>{m.description ?? '—'}</td>
+              <td>
+                {/* движения по заказу правятся через заказ — кнопку не показываем */}
+                {m.order_id == null && (
+                  <button className="btn btn--sm" onClick={() => openEdit(m)} title="Редактировать">
+                    ✎
+                  </button>
+                )}
+              </td>
             </tr>
           ))}
           {items.length === 0 && (
             <tr>
-              <td colSpan={8} className="text-muted">
+              <td colSpan={9} className="text-muted">
                 Движений пока нет
               </td>
             </tr>

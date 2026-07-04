@@ -19,3 +19,15 @@ export const manualMovementSchema = z
   });
 
 export type ManualMovementInput = z.infer<typeof manualMovementSchema>;
+
+// Правка существующего движения: только количество, цена, товар, комментарий, дата.
+// Тип движения и «наборность» не меняем — иначе пришлось бы пересобирать компоненты.
+export const updateMovementSchema = z.object({
+  product_id: z.coerce.number().int().positive().optional(),
+  quantity: z.coerce.number().int().positive('Количество должно быть больше нуля').optional(),
+  price: z.coerce.number().min(0).optional(),
+  description: z.string().trim().nullable().optional(),
+  movement_date: z.coerce.date().optional(),
+});
+
+export type UpdateMovementInput = z.infer<typeof updateMovementSchema>;

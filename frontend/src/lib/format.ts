@@ -18,6 +18,28 @@ export function formatDateTime(value: string): string {
   });
 }
 
+// Дата-время без года: ДД.ММ ЧЧ:ММ — для таблиц, где год не нужен.
+export function formatDateShort(value: string): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+// Подпись товара: Название · цвет · размер · модель (пустые поля пропускаем).
+export function productTitle(p: {
+  name: string;
+  color?: string | null;
+  size?: string | null;
+  model?: string | null;
+}): string {
+  return [p.name, p.color, p.size ? 'р.' + p.size : null, p.model].filter(Boolean).join(' · ');
+}
+
 // Строит полный URL до файла на сервере. Внешние ссылки возвращает как есть.
 export function assetUrl(url: string | null | undefined): string {
   if (!url) return '';

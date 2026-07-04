@@ -1,14 +1,12 @@
 import { SearchPicker, PickedItem } from '@/components/SearchPicker';
+import { productTitle } from '@/lib/format';
 import { Product } from '@/types';
 
 export type PickedProduct = PickedItem;
 
-// Формирует подпись товара для выпадающего списка.
+// Формирует подпись товара для выпадающего списка: Название · цвет · размер · модель.
 export function productLabel(p: Product): string {
-  const parts = [p.name];
-  if (p.article) parts.push(p.article);
-  if (p.size) parts.push('р.' + p.size);
-  return parts.join(' · ');
+  return productTitle(p);
 }
 
 interface Props {
