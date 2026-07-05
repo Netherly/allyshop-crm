@@ -1,7 +1,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '@/lib/api';
-import { formatMoney, getApiError } from '@/lib/format';
+import { formatMoney, getApiError, productTitle } from '@/lib/format';
 import { ProductPicker } from '@/components/ProductPicker';
 import { SetPicker } from '@/components/SetPicker';
 import { PickedItem } from '@/components/SearchPicker';
@@ -95,7 +95,7 @@ export function OrderCard() {
         key: String(it.id),
         item_type: it.item_type,
         ref_id: (it.item_type === 'product' ? it.product_id : it.set_id) ?? 0,
-        label: [it.name, it.size && 'р.' + it.size].filter(Boolean).join(' · '),
+        label: productTitle(it),
         quantity: it.quantity,
         price: String(Number(it.price)),
       })),
@@ -131,12 +131,23 @@ export function OrderCard() {
     if (builderType === 'set') {
       // Набор разворачиваем в отдельные товарные строки, чтобы можно было убрать любой из них.
       const s = (await api.get(`/sets/${builderPick.id}`)).data;
-      type SetItem = { quantity: number; product: { id: number; name: string; size?: string; wholesale_price: string; retail_price: string } };
+      type SetItem = {
+        quantity: number;
+        product: {
+          id: number;
+          name: string;
+          size?: string | null;
+          color?: string | null;
+          model?: string | null;
+          wholesale_price: string;
+          retail_price: string;
+        };
+      };
       const newLines: DraftLine[] = (s.set_items ?? []).map((si: SetItem) => ({
         key: `${Date.now()}-${Math.random()}`,
         item_type: 'product' as const,
         ref_id: si.product.id,
-        label: [si.product.name, si.product.size && 'р.' + si.product.size].filter(Boolean).join(' · '),
+        label: productTitle(si.product),
         quantity: si.quantity * setQty,
         price: String(Number(orderType === 'опт' ? si.product.wholesale_price : si.product.retail_price)),
       }));

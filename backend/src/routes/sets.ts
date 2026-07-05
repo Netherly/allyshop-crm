@@ -20,6 +20,8 @@ const itemsInclude = {
           name: true,
           article: true,
           size: true,
+          color: true,
+          model: true,
           cost_price: true,
           wholesale_price: true,
           retail_price: true,

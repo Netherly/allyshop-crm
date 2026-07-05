@@ -1,7 +1,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { getApiError } from '@/lib/format';
+import { getApiError, productTitle } from '@/lib/format';
 import { ProductPicker, PickedProduct } from '@/components/ProductPicker';
 import { Pagination } from '@/components/Pagination';
 import { Modal } from '@/components/Modal';
@@ -71,9 +71,7 @@ export function Sets() {
     setItems(
       (full.set_items ?? []).map((si) => ({
         product_id: si.product_id,
-        label: [si.product?.name, si.product?.size && 'р.' + si.product.size]
-          .filter(Boolean)
-          .join(' · '),
+        label: si.product ? productTitle(si.product) : '',
         quantity: si.quantity,
       })),
     );

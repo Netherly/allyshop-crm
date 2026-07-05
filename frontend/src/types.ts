@@ -41,7 +41,16 @@ export interface SetComponent {
   set_id: number;
   product_id: number;
   quantity: number;
-  product?: { id: number; name: string; article: string | null; size: string | null };
+  product?: {
+    id: number;
+    name: string;
+    article: string | null;
+    size: string | null;
+    color: string | null;
+    model: string | null;
+    wholesale_price?: string;
+    retail_price?: string;
+  };
 }
 
 export interface ProductSet {
@@ -64,6 +73,8 @@ export interface OrderLine {
   name: string;
   article: string | null;
   size: string | null;
+  color: string | null;
+  model: string | null;
   quantity: number;
   price: string;
   total: string;
