@@ -4,7 +4,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 const tabs = [
   { to: 'products', label: 'Товары' },
   { to: 'sets', label: 'Наборы' },
-  { to: 'movements', label: 'Приход/уход' },
+  { to: 'movements', label: 'Приход / расход' },
 ];
 
 export function Warehouse() {
