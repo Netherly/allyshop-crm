@@ -4,6 +4,9 @@ import { useAuth } from '@/lib/auth';
 import { assetUrl, formatMoney, getApiError } from '@/lib/format';
 import { Pagination } from '@/components/Pagination';
 import { Modal } from '@/components/Modal';
+import { Barcode } from '@/components/Barcode';
+import { Spinner } from '@/components/Spinner';
+import { useBusy } from '@/lib/useBusy';
 import { Paginated, Product } from '@/types';
 
 interface FormState {
@@ -50,6 +53,7 @@ export function Products() {
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const save = useBusy();
 
   const load = useCallback(async () => {
     const res = await api.get<Paginated<Product>>('/products', {
@@ -100,7 +104,7 @@ export function Products() {
     setShowForm(true);
   }
 
-  async function onSubmit(e: FormEvent) {
+  function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
     const payload = {
@@ -109,17 +113,19 @@ export function Products() {
       wholesale_price: Number(form.wholesale_price) || 0,
       retail_price: Number(form.retail_price) || 0,
     };
-    try {
-      if (form.id) {
-        await api.patch(`/products/${form.id}`, payload);
-      } else {
-        await api.post('/products', payload);
+    save.run(async () => {
+      try {
+        if (form.id) {
+          await api.patch(`/products/${form.id}`, payload);
+        } else {
+          await api.post('/products', payload);
+        }
+        setShowForm(false);
+        await load();
+      } catch (err) {
+        setError(getApiError(err, 'Не удалось сохранить товар'));
       }
-      setShowForm(false);
-      await load();
-    } catch (err) {
-      setError(getApiError(err, 'Не удалось сохранить товар'));
-    }
+    });
   }
 
   // Загружает выбранное фото и подставляет полученный URL в форму.
@@ -203,7 +209,13 @@ export function Products() {
                 className="input"
                 value={form.barcode}
                 onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+                placeholder="сгенерируется автоматически"
               />
+              {form.barcode && (
+                <div className="barcode-preview">
+                  <Barcode value={form.barcode} height={40} />
+                </div>
+              )}
             </div>
             <div className="field">
               <label className="field__label">Цвет</label>
@@ -285,8 +297,8 @@ export function Products() {
             </div>
           </div>
           <div className="actions">
-            <button className="btn btn--primary" type="submit">
-              Сохранить
+            <button className="btn btn--primary" type="submit" disabled={save.busy || uploading}>
+              {save.busy ? <Spinner label="Сохранение…" /> : 'Сохранить'}
             </button>
             <button className="btn" type="button" onClick={() => setShowForm(false)}>
               Отмена

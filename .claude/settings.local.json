@@ -36,7 +36,14 @@
       "Bash(grep -iB1 -A6 \"PrismaClient\\\\|logAudit\\\\|audit\\\\|Argument\\\\|Unknown\\\\|null constraint\\\\|Invalid\")",
       "Bash(npm run *)",
       "PowerShell(cd \"C:\\\\Users\\\\pinkj\\\\Desktop\\\\allyshop-crm\\\\backend\"; $env:DATABASE_URL=\"postgresql://neondb_owner:npg_HqYDLB0IW1RX@ep-super-boat-asmnbk83.c-4.eu-central-1.aws.neon.tech/neondb?sslmode=require\"; npx prisma migrate deploy 2>&1)",
-      "Bash(cd /c/Users/pinkj/Desktop/ozon_bot_v2 && cat requirements.txt 2>/dev/null | grep -i google)"
+      "Bash(cd /c/Users/pinkj/Desktop/ozon_bot_v2 && cat requirements.txt 2>/dev/null | grep -i google)",
+      "PowerShell(cd \"C:\\\\Users\\\\pinkj\\\\Desktop\\\\allyshop-crm\\\\backend\"; $env:DATABASE_URL=\"postgresql://neondb_owner:npg_HqYDLB0IW1RX@ep-super-boat-asmnbk83.c-4.eu-central-1.aws.neon.tech/neondb?sslmode=require\"; npx tsx \"C:\\\\Users\\\\pinkj\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-pinkj-Desktop-allyshop-crm\\\\75a848d4-4c72-48f7-9aa0-3c97b26e90ab\\\\scratchpad\\\\check-neon.ts\" 2>&1)",
+      "PowerShell(cd \"C:\\\\Users\\\\pinkj\\\\Desktop\\\\allyshop-crm\\\\backend\"; $env:DATABASE_URL=\"postgresql://neondb_owner:npg_HqYDLB0IW1RX@ep-super-boat-asmnbk83.c-4.eu-central-1.aws.neon.tech/neondb?sslmode=require\"; npx tsx tmp-check.ts 2>&1; Remove-Item tmp-check.ts)",
+      "PowerShell(cd \"C:\\\\Users\\\\pinkj\\\\Desktop\\\\allyshop-crm\\\\backend\"; $env:QA_BASE=\"http://localhost:4000/api\"; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; npx tsx qa-test.ts 2>&1)",
+      "PowerShell(cd \"C:\\\\Users\\\\pinkj\\\\Desktop\\\\allyshop-crm\\\\backend\"; $env:QA_BASE=\"http://localhost:4000/api\"; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; npx tsx qa-edge.ts 2>&1)",
+      "PowerShell(cd \"C:\\\\Users\\\\pinkj\\\\Desktop\\\\allyshop-crm\\\\backend\"; $env:QA_BASE=\"http://localhost:4000/api\"; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; npx tsx qa-extra.ts 2>&1)",
+      "PowerShell(cd \"C:\\\\Users\\\\pinkj\\\\Desktop\\\\allyshop-crm\"; docker compose logs web --tail 15 2>&1 | Select-String -Pattern \"error|Error|failed|✘\" -CaseSensitive:$false; \"--- web check done ---\"; try { \\(Invoke-WebRequest -Uri \"http://localhost:5173\" -UseBasicParsing -TimeoutSec 5\\).StatusCode } catch { \"web: $_\" })",
+      "Bash(awk '/private.*withUserLock|withUserLock\\\\s*[=\\(]/{f=1} f{print NR\": \"$0} f&&/^\\\\s*}\\\\s*$/{c++; if\\(c>=1 && NR>1 && /^  }/\\){exit}}' src/game/game.service.ts)"
     ]
   }
 }

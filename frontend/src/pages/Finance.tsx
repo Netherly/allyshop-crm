@@ -3,6 +3,8 @@ import { api } from '@/lib/api';
 import { formatDateTime, formatMoney, getApiError } from '@/lib/format';
 import { Pagination } from '@/components/Pagination';
 import { Modal } from '@/components/Modal';
+import { Spinner } from '@/components/Spinner';
+import { useBusy } from '@/lib/useBusy';
 import { OrderPicker } from '@/components/OrderPicker';
 import { PickedItem } from '@/components/SearchPicker';
 import { PAYMENT_TYPES, PAYMENT_OUT_TYPES } from '@/lib/orderConstants';
@@ -31,6 +33,7 @@ export function Finance() {
   const [amount, setAmount] = useState('');
   const [comment, setComment] = useState('');
   const [error, setError] = useState('');
+  const save = useBusy();
 
   const load = useCallback(async () => {
     const res = await api.get<Paginated<FinanceTransaction>>('/finance', {
@@ -45,25 +48,27 @@ export function Finance() {
     load();
   }, [load]);
 
-  async function onSubmit(e: FormEvent) {
+  function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
-    try {
-      await api.post('/finance', {
-        order_id: formOrder?.id ?? null,
-        payment_type: formType,
-        amount: Number(amount),
-        comment: comment || null,
-      });
-      setShowForm(false);
-      setFormOrder(null);
-      setAmount('');
-      setComment('');
-      setPage(1);
-      await load();
-    } catch (err) {
-      setError(getApiError(err, 'Не удалось создать операцию'));
-    }
+    save.run(async () => {
+      try {
+        await api.post('/finance', {
+          order_id: formOrder?.id ?? null,
+          payment_type: formType,
+          amount: Number(amount),
+          comment: comment || null,
+        });
+        setShowForm(false);
+        setFormOrder(null);
+        setAmount('');
+        setComment('');
+        setPage(1);
+        await load();
+      } catch (err) {
+        setError(getApiError(err, 'Не удалось создать операцию'));
+      }
+    });
   }
 
   return (
@@ -128,8 +133,8 @@ export function Finance() {
             <input className="input" value={comment} onChange={(e) => setComment(e.target.value)} />
           </div>
           <div className="actions">
-            <button className="btn btn--primary" type="submit">
-              Сохранить
+            <button className="btn btn--primary" type="submit" disabled={save.busy}>
+              {save.busy ? <Spinner label="Сохранение…" /> : 'Сохранить'}
             </button>
             <button className="btn" type="button" onClick={() => setShowForm(false)}>
               Отмена

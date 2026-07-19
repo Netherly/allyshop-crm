@@ -5,6 +5,7 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireSuperAdmin } from '../middleware/auth.js';
 import { createProductSchema, updateProductSchema } from '../schemas/product.js';
 import { getStockMap } from '../services/stock.js';
+import { generateBarcode } from '../services/barcode.js';
 import { parsePagination, paginated } from '../lib/pagination.js';
 import { logAudit } from '../services/audit.js';
 
@@ -62,6 +63,21 @@ router.get(
   }),
 );
 
+// Поиск товара по штрих-коду (для сканирования). Отдаём первый совпавший.
+router.get(
+  '/lookup/:barcode',
+  asyncHandler(async (req, res) => {
+    const barcode = req.params.barcode.trim();
+    const product = await prisma.product.findFirst({ where: { barcode, is_active: true } });
+    if (!product) {
+      res.status(404).json({ error: 'Товар с таким штрих-кодом не найден' });
+      return;
+    }
+    const stock = await getStockMap([product.id]);
+    res.json({ ...product, stock: stock.get(product.id) ?? 0 });
+  }),
+);
+
 // Один товар с остатком.
 router.get(
   '/:id',
@@ -95,7 +111,9 @@ router.post(
       return;
     }
 
-    const product = await prisma.product.create({ data });
+    // Штрих-код: если не задан вручную — генерируем уникальный 8-значный.
+    const barcode = data.barcode ?? (await generateBarcode());
+    const product = await prisma.product.create({ data: { ...data, barcode } });
     await logAudit({ userId: req.user!.id, entityType: 'products', entityId: product.id, action: 'created', newValue: product });
     res.status(201).json({ ...product, stock: 0 });
   }),

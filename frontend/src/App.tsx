@@ -7,6 +7,7 @@ import { Warehouse } from '@/pages/Warehouse';
 import { Products } from '@/pages/Products';
 import { Sets } from '@/pages/Sets';
 import { Movements } from '@/pages/Movements';
+import { BarcodePrint } from '@/pages/BarcodePrint';
 import { Clients } from '@/pages/Clients';
 import { Orders } from '@/pages/Orders';
 import { OrderCard } from '@/pages/OrderCard';
@@ -31,6 +32,7 @@ export function App() {
           <Route path="products" element={<Products />} />
           <Route path="sets" element={<Sets />} />
           <Route path="movements" element={<Movements />} />
+          <Route path="barcodes" element={<BarcodePrint />} />
         </Route>
         <Route path="clients" element={<Clients />} />
         <Route path="orders" element={<Orders />} />

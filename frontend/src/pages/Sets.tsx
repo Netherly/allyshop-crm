@@ -5,6 +5,8 @@ import { getApiError, productTitle } from '@/lib/format';
 import { ProductPicker, PickedProduct } from '@/components/ProductPicker';
 import { Pagination } from '@/components/Pagination';
 import { Modal } from '@/components/Modal';
+import { Spinner } from '@/components/Spinner';
+import { useBusy } from '@/lib/useBusy';
 import { Paginated, ProductSet } from '@/types';
 
 interface CompItem {
@@ -32,6 +34,7 @@ export function Sets() {
   const [pick, setPick] = useState<PickedProduct | null>(null);
   const [pickQty, setPickQty] = useState('1');
   const [error, setError] = useState('');
+  const save = useBusy();
 
   const load = useCallback(async () => {
     const res = await api.get<Paginated<ProductSet>>('/sets', {
@@ -89,7 +92,7 @@ export function Sets() {
     setItems(items.filter((_, i) => i !== idx));
   }
 
-  async function onSubmit(e: FormEvent) {
+  function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
     const payload = {
@@ -97,18 +100,20 @@ export function Sets() {
       description: description || null,
       items: items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
     };
-    try {
-      if (editId) {
-        await api.patch(`/sets/${editId}`, payload);
-      } else {
-        await api.post('/sets', payload);
+    save.run(async () => {
+      try {
+        if (editId) {
+          await api.patch(`/sets/${editId}`, payload);
+        } else {
+          await api.post('/sets', payload);
+        }
+        setShowForm(false);
+        resetForm();
+        await load();
+      } catch (err) {
+        setError(getApiError(err, 'Не удалось сохранить набор'));
       }
-      setShowForm(false);
-      resetForm();
-      await load();
-    } catch (err) {
-      setError(getApiError(err, 'Не удалось сохранить набор'));
-    }
+    });
   }
 
   async function archive(s: ProductSet) {
@@ -218,8 +223,8 @@ export function Sets() {
           </div>
 
           <div className="actions">
-            <button className="btn btn--primary" type="submit">
-              Сохранить
+            <button className="btn btn--primary" type="submit" disabled={save.busy}>
+              {save.busy ? <Spinner label="Сохранение…" /> : 'Сохранить'}
             </button>
             <button
               className="btn"

@@ -35,7 +35,11 @@ export const orderInclude = {
   client: true,
   manager: { select: { id: true, full_name: true } },
   order_items: {
-    include: { components: { include: { product: { select: { id: true, name: true, size: true } } } } },
+    include: {
+      components: {
+        include: { product: { select: { id: true, name: true, size: true, color: true, model: true } } },
+      },
+    },
   },
   finance_transactions: { orderBy: { id: 'desc' }, include: { user: { select: { full_name: true } } } },
   delivery: true,

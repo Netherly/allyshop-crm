@@ -3,8 +3,8 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth } from '../middleware/auth.js';
-import { manualMovementSchema, updateMovementSchema } from '../schemas/movement.js';
-import { createManualMovement, updateMovement } from '../services/stockMovements.js';
+import { manualMovementSchema, updateMovementSchema, bulkMovementSchema } from '../schemas/movement.js';
+import { createManualMovement, updateMovement, createBulkMovements } from '../services/stockMovements.js';
 import { parsePagination, paginated } from '../lib/pagination.js';
 import { logAudit } from '../services/audit.js';
 
@@ -65,6 +65,29 @@ router.post(
       newValue: { movement_type: data.movement_type, item_type: data.item_type, quantity: data.quantity },
     });
     res.status(201).json(created);
+  }),
+);
+
+// Массовое создание движений сканированием штрих-кодов (каждый пик — отдельная запись).
+router.post(
+  '/movements/bulk',
+  asyncHandler(async (req, res) => {
+    const data = bulkMovementSchema.parse(req.body);
+
+    if (CORRECTIONS.includes(data.movement_type) && req.user!.role !== 'super_admin') {
+      res.status(403).json({ error: 'Корректировки склада доступны только супер-админу' });
+      return;
+    }
+
+    const created = await createBulkMovements(data, req.user!.id);
+    await logAudit({
+      userId: req.user!.id,
+      entityType: 'stock',
+      entityId: 0,
+      action: 'created',
+      newValue: { movement_type: data.movement_type, scanned: data.items.length },
+    });
+    res.status(201).json({ count: created.length });
   }),
 );
 

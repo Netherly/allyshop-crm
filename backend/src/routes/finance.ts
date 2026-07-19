@@ -5,6 +5,7 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth } from '../middleware/auth.js';
 import { createFinanceSchema } from '../schemas/finance.js';
 import { recomputeOrderPayment } from '../services/finance.js';
+import { AppError } from '../lib/errors.js';
 import { parsePagination, paginated } from '../lib/pagination.js';
 import { logAudit } from '../services/audit.js';
 
@@ -45,7 +46,7 @@ router.post(
       let orderNumber: string | null = null;
       if (data.order_id) {
         const order = await tx.order.findUnique({ where: { id: data.order_id } });
-        if (!order) throw new Error('order_not_found');
+        if (!order) throw new AppError(404, 'Заказ не найден');
         orderNumber = order.order_number;
       }
 

@@ -4,9 +4,9 @@ import { useAuth } from '@/lib/auth';
 // Разделы меню. Поле superAdmin — пункт виден только супер-админу.
 const navItems = [
   { to: '/', label: 'Дашборд' },
+  { to: '/orders', label: 'Заказы' },
   { to: '/warehouse', label: 'Склад' },
   { to: '/clients', label: 'Клиенты' },
-  { to: '/orders', label: 'Заказы' },
   { to: '/finance', label: 'Финансы' },
   { to: '/audit', label: 'История', superAdmin: true },
   { to: '/users', label: 'Пользователи', superAdmin: true },

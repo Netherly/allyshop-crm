@@ -1,6 +1,8 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { getApiError } from '@/lib/format';
+import { Spinner } from '@/components/Spinner';
+import { useBusy } from '@/lib/useBusy';
 import { Pagination } from '@/components/Pagination';
 import { Modal } from '@/components/Modal';
 import { Client, CounterpartyType, Paginated } from '@/types';
@@ -52,6 +54,7 @@ export function Clients() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [error, setError] = useState('');
+  const save = useBusy();
 
   const load = useCallback(async () => {
     const res = await api.get<Paginated<Client>>('/clients', {
@@ -95,21 +98,23 @@ export function Clients() {
     setShowForm(true);
   }
 
-  async function onSubmit(e: FormEvent) {
+  function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
     const { id, ...payload } = form;
-    try {
-      if (id) {
-        await api.patch(`/clients/${id}`, payload);
-      } else {
-        await api.post('/clients', payload);
+    save.run(async () => {
+      try {
+        if (id) {
+          await api.patch(`/clients/${id}`, payload);
+        } else {
+          await api.post('/clients', payload);
+        }
+        setShowForm(false);
+        await load();
+      } catch (err) {
+        setError(getApiError(err, 'Не удалось сохранить клиента'));
       }
-      setShowForm(false);
-      await load();
-    } catch (err) {
-      setError(getApiError(err, 'Не удалось сохранить клиента'));
-    }
+    });
   }
 
   async function archive(c: Client) {
@@ -265,8 +270,8 @@ export function Clients() {
             </div>
           </div>
           <div className="actions">
-            <button className="btn btn--primary" type="submit">
-              Сохранить
+            <button className="btn btn--primary" type="submit" disabled={save.busy}>
+              {save.busy ? <Spinner label="Сохранение…" /> : 'Сохранить'}
             </button>
             <button className="btn" type="button" onClick={() => setShowForm(false)}>
               Отмена

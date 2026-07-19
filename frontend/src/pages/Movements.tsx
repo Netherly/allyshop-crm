@@ -7,6 +7,9 @@ import { SetPicker } from '@/components/SetPicker';
 import { PickedItem } from '@/components/SearchPicker';
 import { Pagination } from '@/components/Pagination';
 import { Modal } from '@/components/Modal';
+import { ScanMovement } from '@/components/ScanMovement';
+import { Spinner } from '@/components/Spinner';
+import { useBusy } from '@/lib/useBusy';
 import { Paginated, StockMovement } from '@/types';
 
 // Приходные типы показываем зелёным «+», расходные — красным «−».
@@ -32,6 +35,7 @@ export function Movements() {
   const [total, setTotal] = useState(0);
 
   const [showForm, setShowForm] = useState(false);
+  const [showScan, setShowScan] = useState(false);
   const [type, setType] = useState('приход');
   const [itemType, setItemType] = useState<'product' | 'set'>('product');
   const [product, setProduct] = useState<PickedProduct | null>(null);
@@ -48,6 +52,9 @@ export function Movements() {
   const [editPrice, setEditPrice] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editError, setEditError] = useState('');
+
+  const create = useBusy();
+  const edit = useBusy();
 
   const load = useCallback(async () => {
     const res = await api.get<Paginated<StockMovement>>('/stock/movements', {
@@ -73,7 +80,7 @@ export function Movements() {
     setError('');
   }
 
-  async function onSubmit(e: FormEvent) {
+  function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
     if (itemType === 'product' && !product) {
@@ -84,24 +91,26 @@ export function Movements() {
       setError('Выберите набор');
       return;
     }
-    try {
-      await api.post('/stock/movements', {
-        movement_type: type,
-        item_type: itemType,
-        product_id: itemType === 'product' ? product!.id : undefined,
-        set_id: itemType === 'set' ? set!.id : undefined,
-        quantity: Number(quantity),
-        // цена применяется только к товару; у набора компоненты идут с ценой 0
-        price: itemType === 'product' ? Number(price) || 0 : 0,
-        description: description || undefined,
-      });
-      resetForm();
-      setShowForm(false);
-      setPage(1);
-      await load();
-    } catch (err) {
-      setError(getApiError(err, 'Не удалось создать движение'));
-    }
+    create.run(async () => {
+      try {
+        await api.post('/stock/movements', {
+          movement_type: type,
+          item_type: itemType,
+          product_id: itemType === 'product' ? product!.id : undefined,
+          set_id: itemType === 'set' ? set!.id : undefined,
+          quantity: Number(quantity),
+          // цена применяется только к товару; у набора компоненты идут с ценой 0
+          price: itemType === 'product' ? Number(price) || 0 : 0,
+          description: description || undefined,
+        });
+        resetForm();
+        setShowForm(false);
+        setPage(1);
+        await load();
+      } catch (err) {
+        setError(getApiError(err, 'Не удалось создать движение'));
+      }
+    });
   }
 
   // Открывает правку записи. Товар в наборных движениях менять нельзя (set_id != null).
@@ -114,31 +123,36 @@ export function Movements() {
     setEditError('');
   }
 
-  async function submitEdit(e: FormEvent) {
+  function submitEdit(e: FormEvent) {
     e.preventDefault();
     if (!editing) return;
     setEditError('');
     const isSet = editing.set_id != null;
-    try {
-      await api.patch(`/stock/movements/${editing.id}`, {
-        product_id: !isSet ? editProduct?.id : undefined,
-        quantity: Number(editQty),
-        price: !isSet ? Number(editPrice) || 0 : undefined,
-        description: editDesc || null,
-      });
-      setEditing(null);
-      await load();
-    } catch (err) {
-      setEditError(getApiError(err, 'Не удалось сохранить движение'));
-    }
+    edit.run(async () => {
+      try {
+        await api.patch(`/stock/movements/${editing.id}`, {
+          product_id: !isSet ? editProduct?.id : undefined,
+          quantity: Number(editQty),
+          price: !isSet ? Number(editPrice) || 0 : undefined,
+          description: editDesc || null,
+        });
+        setEditing(null);
+        await load();
+      } catch (err) {
+        setEditError(getApiError(err, 'Не удалось сохранить движение'));
+      }
+    });
   }
 
   return (
     <div className="tab-pane">
       <div className="toolbar">
         <div className="text-muted">Приходы, расходы и корректировки склада</div>
+        <button className="btn toolbar__right" onClick={() => setShowScan(true)}>
+          Сканировать
+        </button>
         <button
-          className="btn btn--primary toolbar__right"
+          className="btn btn--primary"
           onClick={() => {
             resetForm();
             setShowForm(true);
@@ -147,6 +161,21 @@ export function Movements() {
           Новое движение
         </button>
       </div>
+
+      <Modal
+        open={showScan}
+        title="Приём / списание по штрих-коду"
+        width={640}
+        onClose={() => setShowScan(false)}
+      >
+        <ScanMovement
+          onDone={() => {
+            setShowScan(false);
+            setPage(1);
+            load();
+          }}
+        />
+      </Modal>
 
       <Modal
         open={showForm}
@@ -231,8 +260,8 @@ export function Movements() {
             />
           </div>
           <div className="actions">
-            <button className="btn btn--primary" type="submit">
-              Создать
+            <button className="btn btn--primary" type="submit" disabled={create.busy}>
+              {create.busy ? <Spinner label="Создание…" /> : 'Создать'}
             </button>
             <button
               className="btn"
@@ -303,8 +332,8 @@ export function Movements() {
             />
           </div>
           <div className="actions">
-            <button className="btn btn--primary" type="submit">
-              Сохранить
+            <button className="btn btn--primary" type="submit" disabled={edit.busy}>
+              {edit.busy ? <Spinner label="Сохранение…" /> : 'Сохранить'}
             </button>
             <button className="btn" type="button" onClick={() => setEditing(null)}>
               Отмена

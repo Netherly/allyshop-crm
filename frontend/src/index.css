@@ -233,6 +233,42 @@ a {
   color: var(--text-muted);
 }
 
+/* Индикатор загрузки (спиннер) */
+.spinner-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Отключённая кнопка во время действия */
+.btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Превью штрих-кода под полем */
+.barcode-preview {
+  margin-top: 8px;
+  padding: 6px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: inline-block;
+}
+
 .form-error {
   color: var(--red);
   font-size: 13px;

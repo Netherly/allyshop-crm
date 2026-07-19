@@ -4,6 +4,8 @@ import { api } from '@/lib/api';
 import { formatDateShort, formatMoney, getApiError } from '@/lib/format';
 import { Pagination } from '@/components/Pagination';
 import { Modal } from '@/components/Modal';
+import { Spinner } from '@/components/Spinner';
+import { useBusy } from '@/lib/useBusy';
 import { ORDER_STATUSES, ORDER_TYPES } from '@/lib/orderConstants';
 import { OrderListItem, Paginated, Role } from '@/types';
 
@@ -40,6 +42,7 @@ export function Orders() {
   const [editing, setEditing] = useState<OrderListItem | null>(null);
   const [editComment, setEditComment] = useState('');
   const [editError, setEditError] = useState('');
+  const saveBusy = useBusy();
 
   const load = useCallback(async () => {
     const res = await api.get<Paginated<OrderListItem>>('/orders', {
@@ -86,17 +89,19 @@ export function Orders() {
     setEditError('');
   }
 
-  async function saveComment(e: FormEvent) {
+  function saveComment(e: FormEvent) {
     e.preventDefault();
     if (!editing) return;
     setEditError('');
-    try {
-      await api.patch(`/orders/${editing.id}`, { comment: editComment.trim() || null });
-      setEditing(null);
-      await load();
-    } catch (err) {
-      setEditError(getApiError(err, 'Не удалось сохранить'));
-    }
+    saveBusy.run(async () => {
+      try {
+        await api.patch(`/orders/${editing.id}`, { comment: editComment.trim() || null });
+        setEditing(null);
+        await load();
+      } catch (err) {
+        setEditError(getApiError(err, 'Не удалось сохранить'));
+      }
+    });
   }
 
   return (
@@ -280,8 +285,8 @@ export function Orders() {
             />
           </div>
           <div className="actions">
-            <button className="btn btn--primary" type="submit">
-              Сохранить
+            <button className="btn btn--primary" type="submit" disabled={saveBusy.busy}>
+              {saveBusy.busy ? <Spinner label="Сохранение…" /> : 'Сохранить'}
             </button>
             <button className="btn" type="button" onClick={() => setEditing(null)}>
               Отмена

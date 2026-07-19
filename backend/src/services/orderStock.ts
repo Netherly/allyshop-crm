@@ -53,7 +53,13 @@ export async function applyStockTransition(
       include: { components: true },
     });
     const productQty = aggregateOrderProducts(items);
-    const ids = [...productQty.keys()];
+    // ids сортируем — единый порядок блокировки исключает взаимоблокировки.
+    const ids = [...productQty.keys()].sort((a, b) => a - b);
+    if (ids.length > 0) {
+      // Блокируем строки товаров: параллельные списания не пересчитают остаток
+      // одновременно — второй ждёт первого и увидит уже уменьшенный остаток (защита от оверселла).
+      await tx.$queryRaw(Prisma.sql`SELECT id FROM products WHERE id IN (${Prisma.join(ids)}) FOR UPDATE`);
+    }
     const stock = await getStockMap(ids, tx);
 
     const shortages = [...productQty.entries()]

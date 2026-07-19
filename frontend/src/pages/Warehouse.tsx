@@ -5,6 +5,7 @@ const tabs = [
   { to: 'products', label: 'Товары' },
   { to: 'sets', label: 'Наборы' },
   { to: 'movements', label: 'Приход / расход' },
+  { to: 'barcodes', label: 'Печать штрих-кодов' },
 ];
 
 export function Warehouse() {

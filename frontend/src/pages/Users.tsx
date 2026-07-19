@@ -1,6 +1,9 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { getApiError } from '@/lib/format';
+import { Modal } from '@/components/Modal';
+import { Spinner } from '@/components/Spinner';
+import { useBusy } from '@/lib/useBusy';
 import { User } from '@/types';
 
 interface FormState {
@@ -18,6 +21,7 @@ export function Users() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState('');
+  const save = useBusy();
 
   async function load() {
     const res = await api.get<User[]>('/users');
@@ -40,27 +44,29 @@ export function Users() {
     setShowForm(true);
   }
 
-  async function onSubmit(e: FormEvent) {
+  function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
-    try {
-      if (form.id) {
-        // при редактировании пароль отправляем только если заполнен
-        const payload: Record<string, unknown> = {
-          full_name: form.full_name,
-          login: form.login,
-          role: form.role,
-        };
-        if (form.password) payload.password = form.password;
-        await api.patch(`/users/${form.id}`, payload);
-      } else {
-        await api.post('/users', form);
+    save.run(async () => {
+      try {
+        if (form.id) {
+          // при редактировании пароль отправляем только если заполнен
+          const payload: Record<string, unknown> = {
+            full_name: form.full_name,
+            login: form.login,
+            role: form.role,
+          };
+          if (form.password) payload.password = form.password;
+          await api.patch(`/users/${form.id}`, payload);
+        } else {
+          await api.post('/users', form);
+        }
+        setShowForm(false);
+        await load();
+      } catch (err) {
+        setError(getApiError(err, 'Ошибка сохранения'));
       }
-      setShowForm(false);
-      await load();
-    } catch (err) {
-      setError(getApiError(err, 'Ошибка сохранения'));
-    }
+    });
   }
 
   async function archive(u: User) {
@@ -96,8 +102,13 @@ export function Users() {
 
       {error && !showForm && <div className="form-error">{error}</div>}
 
-      {showForm && (
-        <form className="card" style={{ marginBottom: 16, maxWidth: 460 }} onSubmit={onSubmit}>
+      <Modal
+        open={showForm}
+        title={form.id ? 'Редактирование пользователя' : 'Новый пользователь'}
+        width={460}
+        onClose={() => setShowForm(false)}
+      >
+        <form onSubmit={onSubmit}>
           {error && <div className="form-error">{error}</div>}
           <div className="field">
             <label className="field__label">ФИО</label>
@@ -138,15 +149,15 @@ export function Users() {
             </select>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn--primary" type="submit">
-              Сохранить
+            <button className="btn btn--primary" type="submit" disabled={save.busy}>
+              {save.busy ? <Spinner label="Сохранение…" /> : 'Сохранить'}
             </button>
             <button className="btn" type="button" onClick={() => setShowForm(false)}>
               Отмена
             </button>
           </div>
         </form>
-      )}
+      </Modal>
 
       <table className="table">
         <thead>

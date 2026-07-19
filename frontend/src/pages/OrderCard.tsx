@@ -2,11 +2,12 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { formatMoney, getApiError, productTitle } from '@/lib/format';
-import { ProductPicker } from '@/components/ProductPicker';
-import { SetPicker } from '@/components/SetPicker';
+import { ItemPicker, PickedEntity } from '@/components/ItemPicker';
 import { PickedItem } from '@/components/SearchPicker';
 import { ClientPicker } from '@/components/ClientPicker';
 import { Modal } from '@/components/Modal';
+import { Spinner } from '@/components/Spinner';
+import { useBusy } from '@/lib/useBusy';
 import { ORDER_SOURCES, ORDER_STATUSES, ORDER_TYPES, PAYMENT_TYPES, PAYMENT_OUT_TYPES } from '@/lib/orderConstants';
 import { Order } from '@/types';
 
@@ -50,9 +51,13 @@ export function OrderCard() {
   const [lines, setLines] = useState<DraftLine[]>([]);
   const [error, setError] = useState('');
 
-  // Конструктор позиции
-  const [builderType, setBuilderType] = useState<'product' | 'set'>('product');
-  const [builderPick, setBuilderPick] = useState<PickedItem | null>(null);
+  // Защита от повторного сабмита (двойные клики → дубли).
+  const submit = useBusy();
+  const pay = useBusy();
+  const deliv = useBusy();
+
+  // Конструктор позиции: единый пикер товара/набора (без выбора типа).
+  const [builderPick, setBuilderPick] = useState<PickedEntity | null>(null);
   const [builderQty, setBuilderQty] = useState('1');
   const [builderPrice, setBuilderPrice] = useState('');
 
@@ -120,15 +125,15 @@ export function OrderCard() {
 
   // Автоподстановка цены при выборе товара в конструкторе (для наборов цена не нужна — раскладываются).
   useEffect(() => {
-    if (!builderPick || builderType === 'set') return;
+    if (!builderPick || builderPick.item_type === 'set') return;
     defaultPrice('product', builderPick.id, orderType).then((p) => setBuilderPrice(String(p)));
-  }, [builderPick, builderType, orderType]);
+  }, [builderPick, orderType]);
 
   async function addLine() {
     if (!builderPick) return;
     const setQty = Number(builderQty) || 1;
 
-    if (builderType === 'set') {
+    if (builderPick.item_type === 'set') {
       // Набор разворачиваем в отдельные товарные строки, чтобы можно было убрать любой из них.
       const s = (await api.get(`/sets/${builderPick.id}`)).data;
       type SetItem = {
@@ -191,23 +196,25 @@ export function OrderCard() {
     subtotal - Number(discountAmount || 0) - (subtotal * Number(discountPercent || 0)) / 100,
   );
 
-  async function addPayment(e: FormEvent) {
+  function addPayment(e: FormEvent) {
     e.preventDefault();
     setPayError('');
-    try {
-      await api.post('/finance', {
-        order_id: Number(id),
-        payment_type: payType,
-        amount: Number(payAmount),
-        comment: payComment || null,
-      });
-      setPayOpen(false);
-      setPayAmount('');
-      setPayComment('');
-      await loadOrder();
-    } catch (err) {
-      setPayError(getApiError(err, 'Не удалось добавить оплату'));
-    }
+    pay.run(async () => {
+      try {
+        await api.post('/finance', {
+          order_id: Number(id),
+          payment_type: payType,
+          amount: Number(payAmount),
+          comment: payComment || null,
+        });
+        setPayOpen(false);
+        setPayAmount('');
+        setPayComment('');
+        await loadOrder();
+      } catch (err) {
+        setPayError(getApiError(err, 'Не удалось добавить оплату'));
+      }
+    });
   }
 
   async function deletePayment(txId: number) {
@@ -216,20 +223,22 @@ export function OrderCard() {
     await loadOrder();
   }
 
-  async function saveDelivery(e: FormEvent) {
+  function saveDelivery(e: FormEvent) {
     e.preventDefault();
     setDeliveryError('');
     setDeliverySaved(false);
-    try {
-      await api.put(`/orders/${id}/delivery`, {
-        ...delivery,
-        delivery_cost: Number(delivery.delivery_cost) || 0,
-      });
-      setDeliverySaved(true);
-      await loadOrder();
-    } catch (err) {
-      setDeliveryError(getApiError(err, 'Не удалось сохранить доставку'));
-    }
+    deliv.run(async () => {
+      try {
+        await api.put(`/orders/${id}/delivery`, {
+          ...delivery,
+          delivery_cost: Number(delivery.delivery_cost) || 0,
+        });
+        setDeliverySaved(true);
+        await loadOrder();
+      } catch (err) {
+        setDeliveryError(getApiError(err, 'Не удалось сохранить доставку'));
+      }
+    });
   }
 
   function setDeliveryField(field: string, value: string) {
@@ -237,13 +246,17 @@ export function OrderCard() {
     setDeliverySaved(false);
   }
 
-  async function onSubmit(e: FormEvent) {
+  function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
     if (lines.length === 0) {
       setError('Добавьте хотя бы одну позицию');
       return;
     }
+    submit.run(doSubmit);
+  }
+
+  async function doSubmit() {
     const payload: Record<string, unknown> = {
       client_id: client?.id ?? null,
       order_type: orderType,
@@ -407,39 +420,24 @@ export function OrderCard() {
             <div className="text-muted">Заказ списан со склада — состав изменить нельзя.</div>
           ) : (
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <select
-              className="select"
-              style={{ width: 120 }}
-              value={builderType}
-              onChange={(e) => {
-                setBuilderType(e.target.value as 'product' | 'set');
-                setBuilderPick(null);
-                setBuilderPrice('');
-              }}
-            >
-              <option value="product">Товар</option>
-              <option value="set">Набор</option>
-            </select>
-            <div style={{ flex: 1, minWidth: 220 }}>
-              {builderType === 'set' ? (
-                <SetPicker value={builderPick} onChange={setBuilderPick} />
-              ) : (
-                <ProductPicker value={builderPick} onChange={setBuilderPick} />
-              )}
+            <div style={{ flex: 1, minWidth: 260 }}>
+              <ItemPicker value={builderPick} onChange={setBuilderPick} />
             </div>
             <input
               className="input"
               style={{ width: 80 }}
               type="number"
-              placeholder="кол-во"
+              min="1"
+              placeholder={builderPick?.item_type === 'set' ? 'наборов' : 'кол-во'}
               value={builderQty}
               onChange={(e) => setBuilderQty(e.target.value)}
             />
-            {builderType === 'product' && (
+            {builderPick?.item_type !== 'set' && (
               <input
                 className="input"
                 style={{ width: 100 }}
                 type="number"
+                min="0"
                 placeholder="цена"
                 value={builderPrice}
                 onChange={(e) => setBuilderPrice(e.target.value)}
@@ -484,8 +482,14 @@ export function OrderCard() {
         </div>
 
         <div className="actions">
-          <button className="btn btn--primary" type="submit">
-            {isNew ? 'Создать заказ' : 'Сохранить'}
+          <button className="btn btn--primary" type="submit" disabled={submit.busy}>
+            {submit.busy ? (
+              <Spinner label={isNew ? 'Создание…' : 'Сохранение…'} />
+            ) : isNew ? (
+              'Создать заказ'
+            ) : (
+              'Сохранить'
+            )}
           </button>
         </div>
       </form>
@@ -617,8 +621,8 @@ export function OrderCard() {
             </div>
           </div>
           <div className="actions">
-            <button className="btn btn--primary" type="submit">
-              Сохранить доставку
+            <button className="btn btn--primary" type="submit" disabled={deliv.busy}>
+              {deliv.busy ? <Spinner label="Сохранение…" /> : 'Сохранить доставку'}
             </button>
             {deliverySaved && <span className="status-ok">Сохранено</span>}
           </div>
@@ -656,8 +660,8 @@ export function OrderCard() {
             />
           </div>
           <div className="actions">
-            <button className="btn btn--primary" type="submit">
-              Добавить
+            <button className="btn btn--primary" type="submit" disabled={pay.busy}>
+              {pay.busy ? <Spinner label="Добавление…" /> : 'Добавить'}
             </button>
             <button className="btn" type="button" onClick={() => setPayOpen(false)}>
               Отмена

@@ -24,6 +24,74 @@ interface MovementInput {
   order_id?: number | null;
 }
 
+interface BulkLine {
+  item_type: 'product' | 'set';
+  product_id?: number;
+  set_id?: number;
+  quantity: number;
+  price: number;
+}
+
+// Массовое создание движений: каждая строка (пик) — отдельная запись; наборы разворачиваем.
+// Для расходных типов проверяем суммарный остаток по всем затронутым товарам.
+export async function createBulkMovements(
+  input: { movement_type: string; items: BulkLine[] },
+  userId: number,
+) {
+  // Готовим итоговые движения, раскрывая наборы на товары.
+  const movements: { product_id: number; set_id: number | null; quantity: number; price: number }[] = [];
+  for (const line of input.items) {
+    if (line.item_type === 'set') {
+      const set = await prisma.set.findUnique({
+        where: { id: line.set_id! },
+        include: { set_items: true },
+      });
+      if (!set) throw new AppError(404, 'Набор не найден');
+      if (set.set_items.length === 0) throw new AppError(400, 'В наборе нет товаров');
+      for (const si of set.set_items) {
+        movements.push({
+          product_id: si.product_id,
+          set_id: set.id,
+          quantity: si.quantity * line.quantity,
+          price: 0,
+        });
+      }
+    } else {
+      movements.push({ product_id: line.product_id!, set_id: null, quantity: line.quantity, price: line.price });
+    }
+  }
+
+  // Для расходных движений проверяем суммарную нехватку.
+  if (MOVEMENT_OUT.includes(input.movement_type)) {
+    const need = new Map<number, number>();
+    for (const m of movements) need.set(m.product_id, (need.get(m.product_id) ?? 0) + m.quantity);
+    const stock = await getStockMap([...need.keys()]);
+    const shortages = [...need.entries()]
+      .map(([product_id, n]) => ({ product_id, need: n, have: stock.get(product_id) ?? 0 }))
+      .filter((s) => s.have < s.need);
+    if (shortages.length > 0) throw new AppError(409, 'Недостаточно остатка', { shortages });
+  }
+
+  const date = new Date();
+  return prisma.$transaction(
+    movements.map((m) =>
+      prisma.stockMovement.create({
+        data: {
+          movement_date: date,
+          movement_type: input.movement_type,
+          product_id: m.product_id,
+          set_id: m.set_id,
+          quantity: m.quantity,
+          price: m.price,
+          total: m.price * m.quantity,
+          user_id: userId,
+          description: 'Ввод по штрих-коду',
+        },
+      }),
+    ),
+  );
+}
+
 interface UpdateInput {
   product_id?: number;
   quantity?: number;

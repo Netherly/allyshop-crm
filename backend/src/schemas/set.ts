@@ -17,7 +17,8 @@ export const createSetSchema = z.object({
   name: z.string().min(1, 'Укажите название'),
   description: optStr,
   is_active: z.boolean().optional(),
-  items: z.array(itemSchema).default([]),
+  // набор без товаров не имеет смысла; при обновлении (partial) — если состав передан, он тоже не пустой
+  items: z.array(itemSchema).min(1, 'Добавьте хотя бы один товар в набор'),
 });
 
 export const updateSetSchema = createSetSchema.partial();

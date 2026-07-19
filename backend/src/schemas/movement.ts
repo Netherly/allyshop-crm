@@ -31,3 +31,25 @@ export const updateMovementSchema = z.object({
 });
 
 export type UpdateMovementInput = z.infer<typeof updateMovementSchema>;
+
+// Массовое создание движений (сканирование штрих-кодов): каждый пик — отдельная строка.
+export const bulkMovementSchema = z.object({
+  movement_type: z.enum(['приход', 'расход', 'корректировка_плюс', 'корректировка_минус']),
+  items: z
+    .array(
+      z
+        .object({
+          item_type: z.enum(['product', 'set']).default('product'),
+          product_id: z.coerce.number().int().positive().optional(),
+          set_id: z.coerce.number().int().positive().optional(),
+          quantity: z.coerce.number().int().positive().default(1),
+          price: z.coerce.number().min(0).default(0),
+        })
+        .refine((d) => (d.item_type === 'set' ? !!d.set_id : !!d.product_id), {
+          message: 'Укажите товар или набор',
+        }),
+    )
+    .min(1, 'Добавьте хотя бы одну позицию'),
+});
+
+export type BulkMovementInput = z.infer<typeof bulkMovementSchema>;
