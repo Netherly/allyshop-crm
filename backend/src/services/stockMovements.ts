@@ -24,6 +24,24 @@ interface MovementInput {
   order_id?: number | null;
 }
 
+// Удаляет движение. Остаток пересчитывается из движений; проверяем, что не ушли в минус.
+export async function deleteMovement(id: number) {
+  const existing = await prisma.stockMovement.findUnique({ where: { id } });
+  if (!existing) throw new AppError(404, 'Движение не найдено');
+  if (existing.order_id) throw new AppError(409, 'Движение относится к заказу — удаляйте через заказ');
+
+  return prisma.$transaction(async (tx) => {
+    await tx.stockMovement.delete({ where: { id } });
+    if (existing.product_id != null) {
+      const stock = await getStockMap([existing.product_id], tx);
+      if ((stock.get(existing.product_id) ?? 0) < 0) {
+        throw new AppError(409, 'Удаление приведёт к отрицательному остатку');
+      }
+    }
+    return { ok: true };
+  });
+}
+
 interface BulkLine {
   item_type: 'product' | 'set';
   product_id?: number;

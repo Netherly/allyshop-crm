@@ -187,6 +187,15 @@ export function OrderCard() {
     );
   }
 
+  // Ручное редактирование количества и цены строки.
+  function setLineQuantity(key: string, value: string) {
+    const q = Math.max(1, Math.floor(Number(value) || 1));
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, quantity: q } : l)));
+  }
+  function setLinePrice(key: string, value: string) {
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, price: value } : l)));
+  }
+
   // После списания со склада состав менять нельзя.
   const writtenOff = !!order?.stock_written_off;
 
@@ -256,6 +265,18 @@ export function OrderCard() {
     submit.run(doSubmit);
   }
 
+  async function removeOrder() {
+    if (!confirm(`Удалить заказ № ${order?.order_number}? Оплаты и складские движения по нему тоже удалятся.`)) {
+      return;
+    }
+    try {
+      await api.delete(`/orders/${id}`);
+      navigate('/orders');
+    } catch (err) {
+      setError(getApiError(err, 'Не удалось удалить заказ'));
+    }
+  }
+
   async function doSubmit() {
     const payload: Record<string, unknown> = {
       client_id: client?.id ?? null,
@@ -296,9 +317,16 @@ export function OrderCard() {
         <h1 className="page-title">
           {isNew ? 'Новый заказ' : `Заказ № ${order?.order_number ?? ''}`}
         </h1>
-        <button className="btn" onClick={() => navigate('/orders')}>
-          ← К списку
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {!isNew && order && (
+            <button className="btn btn--danger" onClick={removeOrder}>
+              Удалить заказ
+            </button>
+          )}
+          <button className="btn" onClick={() => navigate('/orders')}>
+            ← К списку
+          </button>
+        </div>
       </div>
 
       {!isNew && order && (
@@ -379,8 +407,34 @@ export function OrderCard() {
                 <tr key={l.key}>
                   <td>{l.label}</td>
                   <td>{l.item_type === 'set' ? 'Набор' : 'Товар'}</td>
-                  <td>{l.quantity}</td>
-                  <td>{formatMoney(l.price)}</td>
+                  <td>
+                    {writtenOff ? (
+                      l.quantity
+                    ) : (
+                      <input
+                        className="input"
+                        style={{ width: 70 }}
+                        type="number"
+                        min="1"
+                        value={l.quantity}
+                        onChange={(e) => setLineQuantity(l.key, e.target.value)}
+                      />
+                    )}
+                  </td>
+                  <td>
+                    {writtenOff ? (
+                      formatMoney(l.price)
+                    ) : (
+                      <input
+                        className="input"
+                        style={{ width: 90 }}
+                        type="number"
+                        min="0"
+                        value={l.price}
+                        onChange={(e) => setLinePrice(l.key, e.target.value)}
+                      />
+                    )}
+                  </td>
                   <td>{formatMoney(Number(l.price) * l.quantity)}</td>
                   <td>
                     {!writtenOff && (

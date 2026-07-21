@@ -36,35 +36,27 @@ function labelDataUrl(p: Product): { url: string; ratio: number } {
   return { url: canvas.toDataURL('image/png'), ratio: canvas.height / canvas.width };
 }
 
-// Генерирует PDF с сеткой этикеток заданного количества.
+// Генерирует PDF: каждая этикетка — отдельная мини-страница (как на термопринтере).
 function generatePdf(product: Product, qty: number) {
   const { url, ratio } = labelDataUrl(product);
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
-  const cols = 3;
-  const rows = 8;
-  const perPage = cols * rows;
-  const marginX = 10;
-  const marginY = 12;
-  const cellW = (210 - marginX * 2) / cols;
-  const cellH = (297 - marginY * 2) / rows;
+  // Размер страницы-этикетки под пропорции штрих-кода.
+  const pageW = 60; // мм
+  const margin = 4;
+  const imgW = pageW - margin * 2;
+  const imgH = imgW * ratio;
+  const pageH = imgH + margin * 2;
 
-  // Размер картинки внутри ячейки с сохранением пропорций.
-  let imgW = cellW - 6;
-  let imgH = imgW * ratio;
-  if (imgH > cellH - 6) {
-    imgH = cellH - 6;
-    imgW = imgH / ratio;
-  }
+  // Этикетка шире, чем выше → landscape. Иначе jsPDF в portrait меняет W/H местами
+  // (страница становится узкой и высокой, а штрих-код обрезается).
+  const doc = new jsPDF({ unit: 'mm', format: [pageW, pageH], orientation: 'landscape' });
 
   for (let i = 0; i < qty; i++) {
-    const idx = i % perPage;
-    if (i > 0 && idx === 0) doc.addPage();
-    const c = idx % cols;
-    const r = Math.floor(idx / cols);
-    const x = marginX + c * cellW + (cellW - imgW) / 2;
-    const y = marginY + r * cellH + (cellH - imgH) / 2;
-    doc.addImage(url, 'PNG', x, y, imgW, imgH);
+    if (i > 0) doc.addPage([pageW, pageH], 'landscape');
+    // тонкая рамка вокруг этикетки
+    doc.setDrawColor(210);
+    doc.rect(1, 1, pageW - 2, pageH - 2);
+    doc.addImage(url, 'PNG', margin, margin, imgW, imgH);
   }
 
   doc.save(`barcodes-${product.barcode}.pdf`);

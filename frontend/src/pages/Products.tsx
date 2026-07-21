@@ -204,18 +204,12 @@ export function Products() {
               />
             </div>
             <div className="field">
-              <label className="field__label">Штрихкод</label>
+              <label className="field__label">Модель</label>
               <input
                 className="input"
-                value={form.barcode}
-                onChange={(e) => setForm({ ...form, barcode: e.target.value })}
-                placeholder="сгенерируется автоматически"
+                value={form.model}
+                onChange={(e) => setForm({ ...form, model: e.target.value })}
               />
-              {form.barcode && (
-                <div className="barcode-preview">
-                  <Barcode value={form.barcode} height={40} />
-                </div>
-              )}
             </div>
             <div className="field">
               <label className="field__label">Цвет</label>
@@ -226,20 +220,31 @@ export function Products() {
               />
             </div>
             <div className="field">
-              <label className="field__label">Модель</label>
-              <input
-                className="input"
-                value={form.model}
-                onChange={(e) => setForm({ ...form, model: e.target.value })}
-              />
-            </div>
-            <div className="field">
               <label className="field__label">Размер</label>
               <input
                 className="input"
                 value={form.size}
                 onChange={(e) => setForm({ ...form, size: e.target.value })}
               />
+            </div>
+            <div className="field">
+              <label className="field__label">Штрихкод</label>
+              <input
+                className="input"
+                value={form.barcode}
+                onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+                placeholder="сгенерируется автоматически"
+              />
+            </div>
+            <div className="field">
+              <label className="field__label">Картинка кода</label>
+              {form.barcode ? (
+                <div className="barcode-preview">
+                  <Barcode value={form.barcode} height={40} />
+                </div>
+              ) : (
+                <div className="input input--readonly">появится после сохранения</div>
+              )}
             </div>
             <div className="field field--full">
               <label className="field__label">Фото</label>

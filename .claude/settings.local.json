@@ -43,7 +43,26 @@
       "PowerShell(cd \"C:\\\\Users\\\\pinkj\\\\Desktop\\\\allyshop-crm\\\\backend\"; $env:QA_BASE=\"http://localhost:4000/api\"; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; npx tsx qa-edge.ts 2>&1)",
       "PowerShell(cd \"C:\\\\Users\\\\pinkj\\\\Desktop\\\\allyshop-crm\\\\backend\"; $env:QA_BASE=\"http://localhost:4000/api\"; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; npx tsx qa-extra.ts 2>&1)",
       "PowerShell(cd \"C:\\\\Users\\\\pinkj\\\\Desktop\\\\allyshop-crm\"; docker compose logs web --tail 15 2>&1 | Select-String -Pattern \"error|Error|failed|✘\" -CaseSensitive:$false; \"--- web check done ---\"; try { \\(Invoke-WebRequest -Uri \"http://localhost:5173\" -UseBasicParsing -TimeoutSec 5\\).StatusCode } catch { \"web: $_\" })",
-      "Bash(awk '/private.*withUserLock|withUserLock\\\\s*[=\\(]/{f=1} f{print NR\": \"$0} f&&/^\\\\s*}\\\\s*$/{c++; if\\(c>=1 && NR>1 && /^  }/\\){exit}}' src/game/game.service.ts)"
+      "Bash(awk '/private.*withUserLock|withUserLock\\\\s*[=\\(]/{f=1} f{print NR\": \"$0} f&&/^\\\\s*}\\\\s*$/{c++; if\\(c>=1 && NR>1 && /^  }/\\){exit}}' src/game/game.service.ts)",
+      "PowerShell(cd \"C:\\\\Users\\\\pinkj\\\\Desktop\\\\ОМЦИП\\\\OMNICIP_server-main\"; $env:NODE_ENV=\"local\"; Start-Process -FilePath \"npx\" -ArgumentList \"cross-env NODE_ENV=local nest start\" -RedirectStandardOutput \"C:\\\\Users\\\\pinkj\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-pinkj-Desktop-allyshop-crm\\\\75a848d4-4c72-48f7-9aa0-3c97b26e90ab\\\\scratchpad\\\\omcip-server.log\" -RedirectStandardError \"C:\\\\Users\\\\pinkj\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-pinkj-Desktop-allyshop-crm\\\\75a848d4-4c72-48f7-9aa0-3c97b26e90ab\\\\scratchpad\\\\omcip-server.err.log\" -WindowStyle Hidden -PassThru | Select-Object Id | Format-List; \"server launching...\")",
+      "PowerShell($ready=$false; for \\($i=0; $i -lt 30; $i++\\) { try { $r = Invoke-RestMethod -Uri \"http://localhost:3000/api/auth/health\" -TimeoutSec 2; $ready=$true; break } catch { Start-Sleep -Seconds 3 } }; if \\($ready\\) { \"SERVER READY: $\\($r | ConvertTo-Json -Compress\\)\" } else { \"not ready yet\" })",
+      "Read(//tmp/**)",
+      "Bash(tasklist)",
+      "PowerShell(docker exec omcip-local-db psql -U postgres -d omcip_local -t -c \"INSERT INTO users \\(id, telegram_id, username, first_name\\) VALUES \\(gen_random_uuid\\(\\), 999999999, 'test_user', 'Tester'\\) ON CONFLICT \\(telegram_id\\) DO UPDATE SET username='test_user' RETURNING id, telegram_id, coins, energy, max_energy;\" 2>&1)",
+      "PowerShell($r = Invoke-RestMethod -Uri \"http://localhost:3000/api/auth/debug-token\"; \"TOKEN: $\\($r.token\\)\"; \"PAYLOAD: $\\($r.payload | ConvertTo-Json -Compress\\)\")",
+      "Bash(mkdir -p C:/Users/pinkj/AppData/Local/Temp/claude/C--Users-pinkj-Desktop-allyshop-crm/75a848d4-4c72-48f7-9aa0-3c97b26e90ab/scratchpad/omcip-harness)",
+      "Bash(npm init *)",
+      "Bash(node harness.js)",
+      "PowerShell(docker exec omcip-local-db psql -U postgres -d omcip_local -t -c \"UPDATE users SET energy=50, max_energy=50, last_energy_update=CURRENT_TIMESTAMP WHERE telegram_id=999999999 RETURNING energy, coins;\" 2>&1)",
+      "Bash(node harness2.js)",
+      "Bash(grep '\\\\${')",
+      "Bash(node exploit-check.js)",
+      "PowerShell(docker exec omcip-local-db psql -U postgres -d omcip_local -t -c \"SELECT array_length\\(unlocked_characters,1\\) AS chars, array_length\\(unlocked_teeth,1\\) AS teeth, array_length\\(unlocked_backgrounds,1\\) AS bgs FROM users WHERE telegram_id=999999999;\" 2>&1)",
+      "PowerShell(docker exec omcip-local-db psql -U postgres -d omcip_local -t -c \"SELECT type, multiplier, expires_at FROM user_boosts WHERE user_id=\\(SELECT id FROM users WHERE telegram_id=999999999\\) ORDER BY expires_at DESC LIMIT 2;\" 2>&1)",
+      "PowerShell(\"---\")",
+      "Bash(grep -i \"updateUnlocks\\\\|unlocks\" /tmp/omcip-server.log 2>/dev/null | tail -10; echo \"=== errors near unlocks ===\"; grep -i \"error\\\\|invalid input\\\\|malformed\\\\|column\" /tmp/omcip-server.log 2>/dev/null | tail -8)",
+      "Bash(awk '/handleUpdateUnlocks\\\\] Error/{p=NR} p&&NR>=p&&NR<=p+12{print}' /tmp/omcip-server.log)",
+      "Bash(docker exec *)"
     ]
   }
 }

@@ -144,6 +144,16 @@ export function Movements() {
     });
   }
 
+  async function removeMovement(m: StockMovement) {
+    if (!confirm('Удалить движение? Остаток пересчитается.')) return;
+    try {
+      await api.delete(`/stock/movements/${m.id}`);
+      await load();
+    } catch (err) {
+      alert(getApiError(err, 'Не удалось удалить движение'));
+    }
+  }
+
   return (
     <div className="tab-pane">
       <div className="toolbar">
@@ -373,11 +383,20 @@ export function Movements() {
               <td>{m.user?.full_name ?? '—'}</td>
               <td className="cell-clip" title={m.description ?? ''}>{m.description ?? '—'}</td>
               <td>
-                {/* движения по заказу правятся через заказ — кнопку не показываем */}
+                {/* движения по заказу правятся/удаляются через заказ — кнопки не показываем */}
                 {m.order_id == null && (
-                  <button className="btn btn--sm" onClick={() => openEdit(m)} title="Редактировать">
-                    ✎
-                  </button>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button className="btn btn--sm" onClick={() => openEdit(m)} title="Редактировать">
+                      ✎
+                    </button>
+                    <button
+                      className="btn btn--sm btn--danger"
+                      onClick={() => removeMovement(m)}
+                      title="Удалить движение"
+                    >
+                      ×
+                    </button>
+                  </div>
                 )}
               </td>
             </tr>

@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth } from '../middleware/auth.js';
 import { manualMovementSchema, updateMovementSchema, bulkMovementSchema } from '../schemas/movement.js';
-import { createManualMovement, updateMovement, createBulkMovements } from '../services/stockMovements.js';
+import { createManualMovement, updateMovement, createBulkMovements, deleteMovement } from '../services/stockMovements.js';
 import { parsePagination, paginated } from '../lib/pagination.js';
 import { logAudit } from '../services/audit.js';
 
@@ -119,6 +119,34 @@ router.patch(
       newValue: { quantity: data.quantity, price: data.price },
     });
     res.json(updated);
+  }),
+);
+
+// Удаление движения. Корректировки — только супер-админ; движения по заказу удалять нельзя.
+router.delete(
+  '/movements/:id',
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    const existing = await prisma.stockMovement.findUnique({
+      where: { id },
+      select: { movement_type: true, order_id: true },
+    });
+    if (!existing) {
+      res.status(404).json({ error: 'Движение не найдено' });
+      return;
+    }
+    if (existing.order_id) {
+      res.status(409).json({ error: 'Движение относится к заказу — удаляйте через заказ' });
+      return;
+    }
+    if (CORRECTIONS.includes(existing.movement_type) && req.user!.role !== 'super_admin') {
+      res.status(403).json({ error: 'Корректировки склада доступны только супер-админу' });
+      return;
+    }
+
+    await deleteMovement(id);
+    await logAudit({ userId: req.user!.id, entityType: 'stock', entityId: id, action: 'deleted' });
+    res.json({ ok: true });
   }),
 );
 

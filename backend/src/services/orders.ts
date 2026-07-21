@@ -269,3 +269,27 @@ export async function updateOrder(id: number, input: UpdateInput, userId: number
     return tx.order.findUnique({ where: { id }, include: orderInclude });
   });
 }
+
+// Удаляет заказ со всеми связанными записями. Складские движения по заказу
+// удаляются вместе с ним — остаток возвращается к состоянию до заказа.
+export async function deleteOrder(id: number, userId: number) {
+  const existing = await prisma.order.findUnique({ where: { id } });
+  if (!existing) throw new AppError(404, 'Заказ не найден');
+
+  return prisma.$transaction(async (tx) => {
+    // FK без каскада — чистим вручную; order_items/components/delivery уйдут каскадом.
+    await tx.financeTransaction.deleteMany({ where: { order_id: id } });
+    await tx.stockMovement.deleteMany({ where: { order_id: id } });
+    await tx.order.delete({ where: { id } });
+
+    await logAudit({
+      client: tx,
+      userId,
+      entityType: 'orders',
+      entityId: id,
+      action: 'deleted',
+      oldValue: { order_number: existing.order_number, status: existing.status },
+    });
+    return { ok: true };
+  });
+}

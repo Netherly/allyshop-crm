@@ -5,7 +5,7 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth } from '../middleware/auth.js';
 import { createOrderSchema, updateOrderSchema } from '../schemas/order.js';
 import { deliverySchema } from '../schemas/delivery.js';
-import { createOrder, updateOrder, orderInclude } from '../services/orders.js';
+import { createOrder, updateOrder, deleteOrder, orderInclude } from '../services/orders.js';
 import { parsePagination, paginated } from '../lib/pagination.js';
 
 const router = Router();
@@ -107,6 +107,15 @@ router.patch(
     const data = updateOrderSchema.parse(req.body);
     const order = await updateOrder(Number(req.params.id), data, req.user!.id);
     res.json(order);
+  }),
+);
+
+// Удаление заказа (со всеми связанными записями).
+router.delete(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    await deleteOrder(Number(req.params.id), req.user!.id);
+    res.json({ ok: true });
   }),
 );
 
