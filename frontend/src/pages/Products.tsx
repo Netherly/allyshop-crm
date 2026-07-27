@@ -40,8 +40,11 @@ const emptyForm: FormState = {
 };
 
 export function Products() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'super_admin';
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('products.create');
+  const canEdit = hasPermission('products.edit');
+  const canDelete = hasPermission('products.delete');
+  const canActions = canEdit || canDelete;
 
   const [products, setProducts] = useState<Product[]>([]);
   const [q, setQ] = useState('');
@@ -171,7 +174,7 @@ export function Products() {
           <option value="archived">Архив</option>
           <option value="all">Все</option>
         </select>
-        {isAdmin && (
+        {canCreate && (
           <button className="btn btn--primary toolbar__right" onClick={startCreate}>
             Добавить
           </button>
@@ -323,7 +326,7 @@ export function Products() {
             <th>Розн. цена</th>
             <th>Остаток</th>
             <th>Статус</th>
-            {isAdmin && <th></th>}
+            {canActions && <th></th>}
           </tr>
         </thead>
         <tbody>
@@ -348,21 +351,24 @@ export function Products() {
                   <span className="badge badge--gray">Архив</span>
                 )}
               </td>
-              {isAdmin && (
+              {canActions && (
                 <td>
                   <div className="actions">
-                    <button className="btn btn--sm" onClick={() => startEdit(p)}>
-                      Изменить
-                    </button>
-                    {p.is_active ? (
-                      <button className="btn btn--sm btn--danger" onClick={() => archive(p)}>
-                        В архив
-                      </button>
-                    ) : (
-                      <button className="btn btn--sm" onClick={() => restore(p)}>
-                        Вернуть
+                    {canEdit && (
+                      <button className="btn btn--sm" onClick={() => startEdit(p)}>
+                        Изменить
                       </button>
                     )}
+                    {canDelete &&
+                      (p.is_active ? (
+                        <button className="btn btn--sm btn--danger" onClick={() => archive(p)}>
+                          В архив
+                        </button>
+                      ) : (
+                        <button className="btn btn--sm" onClick={() => restore(p)}>
+                          Вернуть
+                        </button>
+                      ))}
                   </div>
                 </td>
               )}
@@ -370,7 +376,7 @@ export function Products() {
           ))}
           {products.length === 0 && (
             <tr>
-              <td colSpan={isAdmin ? 8 : 7} className="text-muted">
+              <td colSpan={canActions ? 8 : 7} className="text-muted">
                 Товары не найдены
               </td>
             </tr>

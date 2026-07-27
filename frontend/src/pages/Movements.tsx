@@ -26,8 +26,11 @@ function typeBadge(type: string) {
 }
 
 export function Movements() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'super_admin';
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('stock.create');
+  const canEdit = hasPermission('stock.edit');
+  const canDelete = hasPermission('stock.delete');
+  const canCorrect = hasPermission('stock.corrections');
 
   const [items, setItems] = useState<StockMovement[]>([]);
   const [page, setPage] = useState(1);
@@ -158,18 +161,22 @@ export function Movements() {
     <div className="tab-pane">
       <div className="toolbar">
         <div className="text-muted">Приходы, расходы и корректировки склада</div>
-        <button className="btn toolbar__right" onClick={() => setShowScan(true)}>
-          Сканировать
-        </button>
-        <button
-          className="btn btn--primary"
-          onClick={() => {
-            resetForm();
-            setShowForm(true);
-          }}
-        >
-          Новое движение
-        </button>
+        {canCreate && (
+          <button className="btn toolbar__right" onClick={() => setShowScan(true)}>
+            Сканировать
+          </button>
+        )}
+        {canCreate && (
+          <button
+            className="btn btn--primary"
+            onClick={() => {
+              resetForm();
+              setShowForm(true);
+            }}
+          >
+            Новое движение
+          </button>
+        )}
       </div>
 
       <Modal
@@ -203,8 +210,8 @@ export function Movements() {
             <select className="select" value={type} onChange={(e) => setType(e.target.value)}>
               <option value="приход">Приход</option>
               <option value="расход">Расход</option>
-              {isAdmin && <option value="корректировка_плюс">Корректировка +</option>}
-              {isAdmin && <option value="корректировка_минус">Корректировка −</option>}
+              {canCorrect && <option value="корректировка_плюс">Корректировка +</option>}
+              {canCorrect && <option value="корректировка_минус">Корректировка −</option>}
             </select>
           </div>
           <div className="field">
@@ -384,18 +391,22 @@ export function Movements() {
               <td className="cell-clip" title={m.description ?? ''}>{m.description ?? '—'}</td>
               <td>
                 {/* движения по заказу правятся/удаляются через заказ — кнопки не показываем */}
-                {m.order_id == null && (
+                {m.order_id == null && (canEdit || canDelete) && (
                   <div style={{ display: 'flex', gap: 4 }}>
-                    <button className="btn btn--sm" onClick={() => openEdit(m)} title="Редактировать">
-                      ✎
-                    </button>
-                    <button
-                      className="btn btn--sm btn--danger"
-                      onClick={() => removeMovement(m)}
-                      title="Удалить движение"
-                    >
-                      ×
-                    </button>
+                    {canEdit && (
+                      <button className="btn btn--sm" onClick={() => openEdit(m)} title="Редактировать">
+                        ✎
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        className="btn btn--sm btn--danger"
+                        onClick={() => removeMovement(m)}
+                        title="Удалить движение"
+                      >
+                        ×
+                      </button>
+                    )}
                   </div>
                 )}
               </td>

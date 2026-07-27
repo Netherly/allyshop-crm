@@ -2,13 +2,13 @@ import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requirePermission } from '../middleware/auth.js';
 import { createClientSchema, updateClientSchema } from '../schemas/client.js';
 import { parsePagination, paginated } from '../lib/pagination.js';
 import { logAudit } from '../services/audit.js';
 
 const router = Router();
-router.use(requireAuth);
+router.use(requireAuth, requirePermission('clients.view'));
 
 // Список клиентов с поиском, фильтром по типу контрагента и статусу.
 router.get(
@@ -54,6 +54,7 @@ router.get(
 // Создание клиента.
 router.post(
   '/',
+  requirePermission('clients.create'),
   asyncHandler(async (req, res) => {
     const data = createClientSchema.parse(req.body);
     const client = await prisma.client.create({ data });
@@ -65,6 +66,7 @@ router.post(
 // Обновление клиента.
 router.patch(
   '/:id',
+  requirePermission('clients.edit'),
   asyncHandler(async (req, res) => {
     const data = updateClientSchema.parse(req.body);
     const id = Number(req.params.id);
@@ -77,6 +79,7 @@ router.patch(
 // Архивирование вместо удаления.
 router.delete(
   '/:id',
+  requirePermission('clients.delete'),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id);
     const client = await prisma.client.update({ where: { id }, data: { is_active: false } });

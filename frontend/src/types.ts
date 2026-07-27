@@ -13,9 +13,27 @@ export interface User {
   full_name: string;
   login: string;
   role: Role;
+  role_id: number | null;
+  role_name: string | null;
+  permissions: string[];
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+// Настраиваемая роль с доступами.
+export interface AppRole {
+  id: number;
+  name: string;
+  permissions: string[];
+  is_system: boolean;
+  users_count?: number;
+}
+
+// Каталог доступов (группа → пункты) для страницы «Доступы».
+export interface PermissionGroup {
+  group: string;
+  items: { key: string; label: string }[];
 }
 
 export type CounterpartyType = 'client' | 'supplier' | 'both' | 'other';
@@ -94,6 +112,14 @@ export interface OrderDelivery {
   delivery_cost: string;
   delivery_status: string | null;
   np_raw_status: string | null;
+  sender_name: string | null;
+  sender_city: string | null;
+  weight: string | null;
+  scheduled_delivery_date: string | null;
+  actual_delivery_date: string | null;
+  payer_type: string | null;
+  cargo_description: string | null;
+  status_code: string | null;
 }
 
 export interface Order {

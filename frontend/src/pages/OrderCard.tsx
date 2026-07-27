@@ -3,11 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { formatMoney, getApiError, productTitle } from '@/lib/format';
 import { ItemPicker, PickedEntity } from '@/components/ItemPicker';
+import { NpAutocomplete } from '@/components/NpAutocomplete';
 import { PickedItem } from '@/components/SearchPicker';
 import { ClientPicker } from '@/components/ClientPicker';
 import { Modal } from '@/components/Modal';
 import { Spinner } from '@/components/Spinner';
 import { useBusy } from '@/lib/useBusy';
+import { useAuth } from '@/lib/auth';
 import { ORDER_SOURCES, ORDER_STATUSES, ORDER_TYPES, PAYMENT_TYPES, PAYMENT_OUT_TYPES } from '@/lib/orderConstants';
 import { Order } from '@/types';
 
@@ -38,6 +40,10 @@ export function OrderCard() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isNew = !id || id === 'new';
+  const { hasPermission } = useAuth();
+  const canSave = isNew ? hasPermission('orders.create') : hasPermission('orders.edit');
+  const canDelete = hasPermission('orders.delete');
+  const canPay = hasPermission('finance.create');
 
   const [order, setOrder] = useState<Order | null>(null);
   const [client, setClient] = useState<PickedItem | null>(null);
@@ -78,9 +84,18 @@ export function OrderCard() {
     delivery_payer: '',
     delivery_cost: '0',
     delivery_status: '',
+    sender_name: '',
+    sender_city: '',
+    weight: '',
+    scheduled_delivery_date: '',
+    actual_delivery_date: '',
+    payer_type: '',
+    cargo_description: '',
+    status_code: '',
   });
   const [deliverySaved, setDeliverySaved] = useState(false);
   const [deliveryError, setDeliveryError] = useState('');
+  const track = useBusy();
 
   const loadOrder = useCallback(async () => {
     if (isNew) return;
@@ -116,6 +131,14 @@ export function OrderCard() {
       delivery_payer: d?.delivery_payer ?? '',
       delivery_cost: d ? String(Number(d.delivery_cost)) : '0',
       delivery_status: d?.delivery_status ?? '',
+      sender_name: d?.sender_name ?? '',
+      sender_city: d?.sender_city ?? '',
+      weight: d?.weight ?? '',
+      scheduled_delivery_date: d?.scheduled_delivery_date ?? '',
+      actual_delivery_date: d?.actual_delivery_date ?? '',
+      payer_type: d?.payer_type ?? '',
+      cargo_description: d?.cargo_description ?? '',
+      status_code: d?.status_code ?? '',
     });
   }, [id, isNew]);
 
@@ -255,8 +278,42 @@ export function OrderCard() {
     setDeliverySaved(false);
   }
 
-  function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  // Подтянуть данные по ТТН из API Новой Почты и заполнить форму.
+  function trackTtn() {
+    const ttn = delivery.ttn.trim();
+    if (!ttn) {
+      setDeliveryError('Укажите ТТН');
+      return;
+    }
+    setDeliveryError('');
+    track.run(async () => {
+      try {
+        const { data } = await api.get(`/np/track/${ttn}`);
+        setDelivery((d) => ({
+          ...d,
+          recipient_name: data.recipient_name ?? d.recipient_name,
+          recipient_phone: data.recipient_phone ?? d.recipient_phone,
+          city: data.city ?? d.city,
+          branch: data.branch ?? d.branch,
+          delivery_status: data.delivery_status ?? d.delivery_status,
+          status_code: data.status_code ?? d.status_code,
+          sender_name: data.sender_name ?? d.sender_name,
+          sender_city: data.sender_city ?? d.sender_city,
+          weight: data.weight ?? d.weight,
+          delivery_cost: data.delivery_cost != null ? String(data.delivery_cost) : d.delivery_cost,
+          scheduled_delivery_date: data.scheduled_delivery_date ?? d.scheduled_delivery_date,
+          actual_delivery_date: data.actual_delivery_date ?? d.actual_delivery_date,
+          payer_type: data.payer_type ?? d.payer_type,
+          cargo_description: data.cargo_description ?? d.cargo_description,
+        }));
+        setDeliverySaved(false);
+      } catch (err) {
+        setDeliveryError(getApiError(err, 'Не удалось получить данные по ТТН'));
+      }
+    });
+  }
+
+  function handleSave() {
     setError('');
     if (lines.length === 0) {
       setError('Добавьте хотя бы одну позицию');
@@ -318,7 +375,7 @@ export function OrderCard() {
           {isNew ? 'Новый заказ' : `Заказ № ${order?.order_number ?? ''}`}
         </h1>
         <div style={{ display: 'flex', gap: 8 }}>
-          {!isNew && order && (
+          {!isNew && order && canDelete && (
             <button className="btn btn--danger" onClick={removeOrder}>
               Удалить заказ
             </button>
@@ -337,7 +394,7 @@ export function OrderCard() {
         </div>
       )}
 
-      <form onSubmit={onSubmit}>
+      <div className="order-edit">
         {error && <div className="form-error">{error}</div>}
 
         <div className="card" style={{ marginBottom: 16 }}>
@@ -504,7 +561,10 @@ export function OrderCard() {
           )}
         </div>
 
-        <div className="card" style={{ marginBottom: 16, maxWidth: 360 }}>
+      </div>
+
+      <div className="order-lower">
+        <div className="card">
           <div className="order-total-row">
             <span>Подытог</span>
             <span>{formatMoney(subtotal)}</span>
@@ -533,28 +593,30 @@ export function OrderCard() {
             <span>Итого</span>
             <span>{formatMoney(total)}</span>
           </div>
+          {canSave && (
+            <div className="actions" style={{ marginTop: 12 }}>
+              <button className="btn btn--primary" type="button" onClick={handleSave} disabled={submit.busy}>
+                {submit.busy ? (
+                  <Spinner label={isNew ? 'Создание…' : 'Сохранение…'} />
+                ) : isNew ? (
+                  'Создать заказ'
+                ) : (
+                  'Сохранить'
+                )}
+              </button>
+            </div>
+          )}
         </div>
-
-        <div className="actions">
-          <button className="btn btn--primary" type="submit" disabled={submit.busy}>
-            {submit.busy ? (
-              <Spinner label={isNew ? 'Создание…' : 'Сохранение…'} />
-            ) : isNew ? (
-              'Создать заказ'
-            ) : (
-              'Сохранить'
-            )}
-          </button>
-        </div>
-      </form>
 
       {!isNew && order && (
-        <div className="card" style={{ marginTop: 16, maxWidth: 560 }}>
+        <div className="card">
           <div className="page-header">
             <h3>Оплаты</h3>
-            <button className="btn btn--sm btn--primary" onClick={() => setPayOpen(true)}>
-              Добавить оплату
-            </button>
+            {canPay && (
+              <button className="btn btn--sm btn--primary" onClick={() => setPayOpen(true)}>
+                Добавить оплату
+              </button>
+            )}
           </div>
           <div className="text-muted" style={{ marginBottom: 12 }}>
             Оплачено: {formatMoney(order.paid_amount)} из {formatMoney(order.total_amount)} ·{' '}
@@ -600,10 +662,31 @@ export function OrderCard() {
       )}
 
       {!isNew && order && (
-        <form className="card" style={{ marginTop: 16, maxWidth: 560 }} onSubmit={saveDelivery}>
+        <form className="card" onSubmit={saveDelivery}>
           <h3 style={{ marginBottom: 12 }}>Доставка (Новая Почта)</h3>
           {deliveryError && <div className="form-error">{deliveryError}</div>}
           <div className="form-grid">
+            <div className="field field--full">
+              <label className="field__label">ТТН</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  className="input"
+                  value={delivery.ttn}
+                  onChange={(e) => setDeliveryField('ttn', e.target.value)}
+                  placeholder="номер накладной Новой Почты"
+                />
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ whiteSpace: 'nowrap' }}
+                  onClick={trackTtn}
+                  disabled={track.busy || !delivery.ttn.trim()}
+                >
+                  {track.busy ? <Spinner label="Загрузка…" /> : 'Подтянуть по ТТН'}
+                </button>
+              </div>
+            </div>
+
             <div className="field">
               <label className="field__label">Получатель</label>
               <input
@@ -622,26 +705,23 @@ export function OrderCard() {
             </div>
             <div className="field">
               <label className="field__label">Город</label>
-              <input
-                className="input"
+              <NpAutocomplete
                 value={delivery.city}
-                onChange={(e) => setDeliveryField('city', e.target.value)}
+                onChange={(v) => setDeliveryField('city', v)}
+                fetchItems={(q) => api.get('/np/cities', { params: { q } }).then((r) => r.data)}
+                placeholder="начните вводить город"
               />
             </div>
             <div className="field">
               <label className="field__label">Отделение / почтомат</label>
-              <input
-                className="input"
+              <NpAutocomplete
                 value={delivery.branch}
-                onChange={(e) => setDeliveryField('branch', e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label className="field__label">ТТН</label>
-              <input
-                className="input"
-                value={delivery.ttn}
-                onChange={(e) => setDeliveryField('ttn', e.target.value)}
+                onChange={(v) => setDeliveryField('branch', v)}
+                fetchItems={(q) =>
+                  api.get('/np/warehouses', { params: { city: delivery.city, q } }).then((r) => r.data)
+                }
+                placeholder={delivery.city ? 'начните вводить отделение' : 'сначала выберите город'}
+                disabled={!delivery.city}
               />
             </div>
             <div className="field">
@@ -650,6 +730,71 @@ export function OrderCard() {
                 className="input"
                 value={delivery.delivery_status}
                 onChange={(e) => setDeliveryField('delivery_status', e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label className="field__label">Тип плательщика (НП)</label>
+              <input
+                className="input"
+                value={delivery.payer_type}
+                onChange={(e) => setDeliveryField('payer_type', e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label className="field__label">Вес, кг</label>
+              <input
+                className="input"
+                value={delivery.weight}
+                onChange={(e) => setDeliveryField('weight', e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label className="field__label">Стоимость доставки</label>
+              <input
+                className="input"
+                type="number"
+                value={delivery.delivery_cost}
+                onChange={(e) => setDeliveryField('delivery_cost', e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label className="field__label">Плановая дата</label>
+              <input
+                className="input"
+                value={delivery.scheduled_delivery_date}
+                onChange={(e) => setDeliveryField('scheduled_delivery_date', e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label className="field__label">Фактическая дата</label>
+              <input
+                className="input"
+                value={delivery.actual_delivery_date}
+                onChange={(e) => setDeliveryField('actual_delivery_date', e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label className="field__label">Отправитель</label>
+              <input
+                className="input"
+                value={delivery.sender_name}
+                onChange={(e) => setDeliveryField('sender_name', e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label className="field__label">Город отправителя</label>
+              <input
+                className="input"
+                value={delivery.sender_city}
+                onChange={(e) => setDeliveryField('sender_city', e.target.value)}
+              />
+            </div>
+            <div className="field field--full">
+              <label className="field__label">Описание груза</label>
+              <input
+                className="input"
+                value={delivery.cargo_description}
+                onChange={(e) => setDeliveryField('cargo_description', e.target.value)}
               />
             </div>
             <div className="field">
@@ -664,15 +809,6 @@ export function OrderCard() {
                 <option value="компания">Компания</option>
               </select>
             </div>
-            <div className="field">
-              <label className="field__label">Стоимость доставки</label>
-              <input
-                className="input"
-                type="number"
-                value={delivery.delivery_cost}
-                onChange={(e) => setDeliveryField('delivery_cost', e.target.value)}
-              />
-            </div>
           </div>
           <div className="actions">
             <button className="btn btn--primary" type="submit" disabled={deliv.busy}>
@@ -682,6 +818,7 @@ export function OrderCard() {
           </div>
         </form>
       )}
+      </div>
 
       <Modal open={payOpen} title="Новая оплата" onClose={() => setPayOpen(false)}>
         <form onSubmit={addPayment}>

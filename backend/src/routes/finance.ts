@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requirePermission } from '../middleware/auth.js';
 import { createFinanceSchema } from '../schemas/finance.js';
 import { recomputeOrderPayment } from '../services/finance.js';
 import { AppError } from '../lib/errors.js';
@@ -10,7 +10,7 @@ import { parsePagination, paginated } from '../lib/pagination.js';
 import { logAudit } from '../services/audit.js';
 
 const router = Router();
-router.use(requireAuth);
+router.use(requireAuth, requirePermission('finance.view'));
 
 // Журнал финансовых операций с фильтрами по типу и заказу.
 router.get(
@@ -39,6 +39,7 @@ router.get(
 // Создание операции. Если привязана к заказу — пересчитываем его оплату.
 router.post(
   '/',
+  requirePermission('finance.create'),
   asyncHandler(async (req, res) => {
     const data = createFinanceSchema.parse(req.body);
 
@@ -84,6 +85,7 @@ router.post(
 // Удаление операции с пересчётом оплаты связанного заказа.
 router.delete(
   '/:id',
+  requirePermission('finance.delete'),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id);
     await prisma.$transaction(async (tx) => {

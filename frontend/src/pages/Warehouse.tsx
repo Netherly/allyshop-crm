@@ -1,19 +1,23 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { useAuth } from '@/lib/auth';
 
-// Подразделы склада переключаются табами, у каждого свой URL.
+// Подразделы склада переключаются табами, у каждого свой URL и свой доступ.
 const tabs = [
-  { to: 'products', label: 'Товары' },
-  { to: 'sets', label: 'Наборы' },
-  { to: 'movements', label: 'Приход / расход' },
-  { to: 'barcodes', label: 'Печать штрих-кодов' },
+  { to: 'products', label: 'Товары', perm: 'products.view' },
+  { to: 'sets', label: 'Наборы', perm: 'sets.view' },
+  { to: 'movements', label: 'Приход / расход', perm: 'stock.view' },
+  { to: 'barcodes', label: 'Печать штрих-кодов', perm: 'barcodes.print' },
 ];
 
 export function Warehouse() {
+  const { hasPermission } = useAuth();
+  const visible = tabs.filter((t) => hasPermission(t.perm));
+
   return (
     <div className="warehouse-page">
       <h1 className="page-title">Склад</h1>
       <div className="tabs">
-        {tabs.map((t) => (
+        {visible.map((t) => (
           <NavLink
             key={t.to}
             to={t.to}

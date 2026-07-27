@@ -16,8 +16,11 @@ interface CompItem {
 }
 
 export function Sets() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'super_admin';
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('sets.create');
+  const canEdit = hasPermission('sets.edit');
+  const canDelete = hasPermission('sets.delete');
+  const canActions = canEdit || canDelete;
 
   const [sets, setSets] = useState<ProductSet[]>([]);
   const [q, setQ] = useState('');
@@ -151,7 +154,7 @@ export function Sets() {
           <option value="archived">Архив</option>
           <option value="all">Все</option>
         </select>
-        {isAdmin && (
+        {canCreate && (
           <button className="btn btn--primary toolbar__right" onClick={startCreate}>
             Добавить
           </button>
@@ -248,7 +251,7 @@ export function Sets() {
             <th>Позиций</th>
             <th>Доступно</th>
             <th>Статус</th>
-            {isAdmin && <th></th>}
+            {canActions && <th></th>}
           </tr>
         </thead>
         <tbody>
@@ -268,21 +271,24 @@ export function Sets() {
                   <span className="badge badge--gray">Архив</span>
                 )}
               </td>
-              {isAdmin && (
+              {canActions && (
                 <td>
                   <div className="actions">
-                    <button className="btn btn--sm" onClick={() => startEdit(s)}>
-                      Изменить
-                    </button>
-                    {s.is_active ? (
-                      <button className="btn btn--sm btn--danger" onClick={() => archive(s)}>
-                        В архив
-                      </button>
-                    ) : (
-                      <button className="btn btn--sm" onClick={() => restore(s)}>
-                        Вернуть
+                    {canEdit && (
+                      <button className="btn btn--sm" onClick={() => startEdit(s)}>
+                        Изменить
                       </button>
                     )}
+                    {canDelete &&
+                      (s.is_active ? (
+                        <button className="btn btn--sm btn--danger" onClick={() => archive(s)}>
+                          В архив
+                        </button>
+                      ) : (
+                        <button className="btn btn--sm" onClick={() => restore(s)}>
+                          Вернуть
+                        </button>
+                      ))}
                   </div>
                 </td>
               )}
@@ -290,7 +296,7 @@ export function Sets() {
           ))}
           {sets.length === 0 && (
             <tr>
-              <td colSpan={isAdmin ? 5 : 4} className="text-muted">
+              <td colSpan={canActions ? 5 : 4} className="text-muted">
                 Наборы не найдены
               </td>
             </tr>

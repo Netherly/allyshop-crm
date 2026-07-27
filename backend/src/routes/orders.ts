@@ -2,14 +2,14 @@ import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requirePermission } from '../middleware/auth.js';
 import { createOrderSchema, updateOrderSchema } from '../schemas/order.js';
 import { deliverySchema } from '../schemas/delivery.js';
 import { createOrder, updateOrder, deleteOrder, orderInclude } from '../services/orders.js';
 import { parsePagination, paginated } from '../lib/pagination.js';
 
 const router = Router();
-router.use(requireAuth);
+router.use(requireAuth, requirePermission('orders.view'));
 
 // Список заказов с фильтрами по статусу, типу, источнику и поиском.
 router.get(
@@ -73,6 +73,7 @@ router.get(
 // Создание заказа.
 router.post(
   '/',
+  requirePermission('orders.create'),
   asyncHandler(async (req, res) => {
     const data = createOrderSchema.parse(req.body);
     const order = await createOrder(data, req.user!.id);
@@ -83,6 +84,7 @@ router.post(
 // Доставка заказа (создать/обновить). Ручной ввод ТТН и статуса (API НП — позже).
 router.put(
   '/:id/delivery',
+  requirePermission('orders.edit'),
   asyncHandler(async (req, res) => {
     const orderId = Number(req.params.id);
     const order = await prisma.order.findUnique({ where: { id: orderId } });
@@ -103,6 +105,7 @@ router.put(
 // Обновление заказа (шапка и при необходимости состав).
 router.patch(
   '/:id',
+  requirePermission('orders.edit'),
   asyncHandler(async (req, res) => {
     const data = updateOrderSchema.parse(req.body);
     const order = await updateOrder(Number(req.params.id), data, req.user!.id);
@@ -113,6 +116,7 @@ router.patch(
 // Удаление заказа (со всеми связанными записями).
 router.delete(
   '/:id',
+  requirePermission('orders.delete'),
   asyncHandler(async (req, res) => {
     await deleteOrder(Number(req.params.id), req.user!.id);
     res.json({ ok: true });

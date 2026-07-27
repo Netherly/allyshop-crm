@@ -16,7 +16,7 @@ router.use(requireAuth, requireSuperAdmin);
 router.get(
   '/',
   asyncHandler(async (_req, res) => {
-    const users = await prisma.user.findMany({ orderBy: { id: 'asc' } });
+    const users = await prisma.user.findMany({ orderBy: { id: 'asc' }, include: { role_ref: true } });
     res.json(users.map(publicUser));
   }),
 );
@@ -25,7 +25,10 @@ router.get(
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
-    const user = await prisma.user.findUnique({ where: { id: Number(req.params.id) } });
+    const user = await prisma.user.findUnique({
+      where: { id: Number(req.params.id) },
+      include: { role_ref: true },
+    });
     if (!user) {
       res.status(404).json({ error: 'Пользователь не найден' });
       return;
@@ -40,13 +43,17 @@ router.post(
   asyncHandler(async (req, res) => {
     const data = createUserSchema.parse(req.body);
     const password_hash = await bcrypt.hash(data.password, 10);
+    // Супер-админ не привязан к кастомной роли; обычный пользователь — по role_id.
+    const role_id = data.role === 'super_admin' ? null : data.role_id ?? null;
     const user = await prisma.user.create({
       data: {
         full_name: data.full_name,
         login: data.login,
         password_hash,
         role: data.role,
+        role_id,
       },
+      include: { role_ref: true },
     });
     res.status(201).json(publicUser(user));
   }),
@@ -58,12 +65,15 @@ router.patch(
   asyncHandler(async (req, res) => {
     const data = updateUserSchema.parse(req.body);
     const { password, ...rest } = data;
+    // Супер-админ не должен держать кастомную роль.
+    if (rest.role === 'super_admin') rest.role_id = null;
     const user = await prisma.user.update({
       where: { id: Number(req.params.id) },
       data: {
         ...rest,
         ...(password ? { password_hash: await bcrypt.hash(password, 10) } : {}),
       },
+      include: { role_ref: true },
     });
     res.json(publicUser(user));
   }),

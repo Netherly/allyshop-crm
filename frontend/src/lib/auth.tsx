@@ -7,6 +7,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (login: string, password: string) => Promise<void>;
   logout: () => void;
+  hasPermission: (key: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -40,8 +41,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
+  // Супер-админ может всё; остальные — по списку доступов роли.
+  function hasPermission(key: string): boolean {
+    if (!user) return false;
+    if (user.role === 'super_admin') return true;
+    return user.permissions?.includes(key) ?? false;
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, loading, login, logout, hasPermission }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 

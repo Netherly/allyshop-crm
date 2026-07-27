@@ -14,10 +14,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Роль — фиксированная и влияет на доступ, поэтому держим enum на уровне БД.
+// Системный флаг: super_admin — администратор с полным доступом (управляет ролями/юзерами).
+// Обычные пользователи (user) получают доступ через кастомную роль role_id.
 enum Role {
   user
   super_admin
+}
+
+// Настраиваемая роль с набором доступов (создаётся администратором).
+model AppRole {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  permissions String[] // ключи доступов из каталога
+  is_system   Boolean  @default(false) // системная роль (нельзя удалить)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  users User[]
+
+  @@map("roles")
 }
 
 // Пользователи CRM
@@ -27,10 +42,12 @@ model User {
   login         String   @unique
   password_hash String
   role          Role     @default(user)
+  role_id       Int?
   is_active     Boolean  @default(true)
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
+  role_ref             AppRole?             @relation(fields: [role_id], references: [id])
   orders               Order[]
   stock_movements      StockMovement[]
   finance_transactions FinanceTransaction[]
@@ -250,13 +267,24 @@ model OrderDelivery {
   order_id        Int      @unique
   recipient_name  String?
   recipient_phone String?
-  city            String?
-  branch          String?
+  city            String? // город получателя
+  branch          String? // отделение/почтомат получателя
   ttn             String?
   delivery_payer  String? // клиент | компания
   delivery_cost   Decimal  @default(0) @db.Decimal(12, 2)
   delivery_status String?
   np_raw_status   String?
+
+  // Данные из API Новой Почты (заполняются по ТТН)
+  sender_name             String?
+  sender_city             String?
+  weight                  String?
+  scheduled_delivery_date String?
+  actual_delivery_date    String?
+  payer_type              String? // Sender | Recipient | ThirdPerson
+  cargo_description       String?
+  status_code             String?
+
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 

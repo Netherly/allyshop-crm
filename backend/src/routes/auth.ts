@@ -14,7 +14,10 @@ router.post(
   '/login',
   asyncHandler(async (req, res) => {
     const data = loginSchema.parse(req.body);
-    const user = await prisma.user.findUnique({ where: { login: data.login } });
+    const user = await prisma.user.findUnique({
+      where: { login: data.login },
+      include: { role_ref: true },
+    });
     if (!user || !user.is_active || !(await bcrypt.compare(data.password, user.password_hash))) {
       res.status(401).json({ error: 'Неверный логин или пароль' });
       return;
@@ -30,7 +33,10 @@ router.get(
   '/me',
   requireAuth,
   asyncHandler(async (req, res) => {
-    const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      include: { role_ref: true },
+    });
     res.json({ user: publicUser(user!) });
   }),
 );

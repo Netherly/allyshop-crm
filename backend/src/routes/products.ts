@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
-import { requireAuth, requireSuperAdmin } from '../middleware/auth.js';
+import { requireAuth, requirePermission } from '../middleware/auth.js';
 import { createProductSchema, updateProductSchema } from '../schemas/product.js';
 import { getStockMap } from '../services/stock.js';
 import { generateBarcode } from '../services/barcode.js';
@@ -10,7 +10,7 @@ import { parsePagination, paginated } from '../lib/pagination.js';
 import { logAudit } from '../services/audit.js';
 
 const router = Router();
-router.use(requireAuth);
+router.use(requireAuth, requirePermission('products.view'));
 
 // Ищет товар-дубль по ключу уникальности (article+color+model+size).
 async function findDuplicate(
@@ -96,7 +96,7 @@ router.get(
 // Создание товара (только супер-админ).
 router.post(
   '/',
-  requireSuperAdmin,
+  requirePermission('products.create'),
   asyncHandler(async (req, res) => {
     const data = createProductSchema.parse(req.body);
 
@@ -122,7 +122,7 @@ router.post(
 // Обновление товара (только супер-админ).
 router.patch(
   '/:id',
-  requireSuperAdmin,
+  requirePermission('products.edit'),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id);
     const data = updateProductSchema.parse(req.body);
@@ -156,7 +156,7 @@ router.patch(
 // Архивирование (is_active=false) вместо удаления.
 router.delete(
   '/:id',
-  requireSuperAdmin,
+  requirePermission('products.delete'),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id);
     const product = await prisma.product.update({ where: { id }, data: { is_active: false } });

@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
-import { requireAuth, requireSuperAdmin } from '../middleware/auth.js';
+import { requireAuth, requirePermission } from '../middleware/auth.js';
 import { env } from '../config/env.js';
 
 // На serverless (Vercel) рабочая ФС read-only — каталог может не создаться, это не критично.
@@ -33,7 +33,7 @@ const upload = multer({
 const router = Router();
 
 // Загрузка одного изображения. Возвращает относительный URL.
-router.post('/', requireAuth, requireSuperAdmin, (req, res) => {
+router.post('/', requireAuth, requirePermission('products.create'), (req, res) => {
   upload.single('file')(req, res, (err) => {
     if (err) {
       res.status(400).json({ error: 'Ошибка загрузки файла' });

@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { getApiError } from '@/lib/format';
+import { useAuth } from '@/lib/auth';
 import { Spinner } from '@/components/Spinner';
 import { useBusy } from '@/lib/useBusy';
 import { Pagination } from '@/components/Pagination';
@@ -55,6 +56,10 @@ export function Clients() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [error, setError] = useState('');
   const save = useBusy();
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('clients.create');
+  const canEdit = hasPermission('clients.edit');
+  const canDelete = hasPermission('clients.delete');
 
   const load = useCallback(async () => {
     const res = await api.get<Paginated<Client>>('/clients', {
@@ -168,9 +173,11 @@ export function Clients() {
           <option value="archived">Архив</option>
           <option value="all">Все</option>
         </select>
-        <button className="btn btn--primary toolbar__right" onClick={startCreate}>
-          Добавить
-        </button>
+        {canCreate && (
+          <button className="btn btn--primary toolbar__right" onClick={startCreate}>
+            Добавить
+          </button>
+        )}
       </div>
 
       <Modal
@@ -312,18 +319,21 @@ export function Clients() {
               </td>
               <td>
                 <div className="actions">
-                  <button className="btn btn--sm" onClick={() => startEdit(c)}>
-                    Изменить
-                  </button>
-                  {c.is_active ? (
-                    <button className="btn btn--sm btn--danger" onClick={() => archive(c)}>
-                      В архив
-                    </button>
-                  ) : (
-                    <button className="btn btn--sm" onClick={() => restore(c)}>
-                      Вернуть
+                  {canEdit && (
+                    <button className="btn btn--sm" onClick={() => startEdit(c)}>
+                      Изменить
                     </button>
                   )}
+                  {canDelete &&
+                    (c.is_active ? (
+                      <button className="btn btn--sm btn--danger" onClick={() => archive(c)}>
+                        В архив
+                      </button>
+                    ) : (
+                      <button className="btn btn--sm" onClick={() => restore(c)}>
+                        Вернуть
+                      </button>
+                    ))}
                 </div>
               </td>
             </tr>

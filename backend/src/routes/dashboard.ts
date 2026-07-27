@@ -2,11 +2,11 @@ import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requirePermission } from '../middleware/auth.js';
 import { getStockMap } from '../services/stock.js';
 
 const router = Router();
-router.use(requireAuth);
+router.use(requireAuth, requirePermission('dashboard.view'));
 
 const LOW_STOCK = 3; // порог низкого остатка
 

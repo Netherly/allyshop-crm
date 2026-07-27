@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatDateTime, formatMoney, getApiError } from '@/lib/format';
+import { useAuth } from '@/lib/auth';
 import { Pagination } from '@/components/Pagination';
 import { Modal } from '@/components/Modal';
 import { Spinner } from '@/components/Spinner';
@@ -34,6 +35,8 @@ export function Finance() {
   const [comment, setComment] = useState('');
   const [error, setError] = useState('');
   const save = useBusy();
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('finance.create');
 
   const load = useCallback(async () => {
     const res = await api.get<Paginated<FinanceTransaction>>('/finance', {
@@ -91,15 +94,17 @@ export function Finance() {
             </option>
           ))}
         </select>
-        <button
-          className="btn btn--primary toolbar__right"
-          onClick={() => {
-            setError('');
-            setShowForm(true);
-          }}
-        >
-          Добавить операцию
-        </button>
+        {canCreate && (
+          <button
+            className="btn btn--primary toolbar__right"
+            onClick={() => {
+              setError('');
+              setShowForm(true);
+            }}
+          >
+            Добавить операцию
+          </button>
+        )}
       </div>
 
       <Modal open={showForm} title="Новая операция" onClose={() => setShowForm(false)}>

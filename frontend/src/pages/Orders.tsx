@@ -6,6 +6,7 @@ import { Pagination } from '@/components/Pagination';
 import { Modal } from '@/components/Modal';
 import { Spinner } from '@/components/Spinner';
 import { useBusy } from '@/lib/useBusy';
+import { useAuth } from '@/lib/auth';
 import { ORDER_STATUSES, ORDER_TYPES } from '@/lib/orderConstants';
 import { OrderListItem, Paginated, Role } from '@/types';
 
@@ -26,6 +27,9 @@ function parseTags(tags: string | null): string[] {
 
 export function Orders() {
   const navigate = useNavigate();
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('orders.create');
+  const canEdit = hasPermission('orders.edit');
   const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
@@ -148,9 +152,11 @@ export function Orders() {
             </option>
           ))}
         </select>
-        <button className="btn btn--primary toolbar__right" onClick={() => navigate('/orders/new')}>
-          Создать заказ
-        </button>
+        {canCreate && (
+          <button className="btn btn--primary toolbar__right" onClick={() => navigate('/orders/new')}>
+            Создать заказ
+          </button>
+        )}
       </div>
 
       <div className="table-scroll">
@@ -185,45 +191,48 @@ export function Orders() {
                       <span
                         key={t}
                         className="tag-chip"
-                        title="Нажмите, чтобы удалить"
-                        onClick={() => removeTag(o, t)}
+                        title={canEdit ? 'Нажмите, чтобы удалить' : ''}
+                        onClick={canEdit ? () => removeTag(o, t) : undefined}
+                        style={canEdit ? undefined : { cursor: 'default' }}
                       >
                         {t}
-                        <span className="tag-chip__x">×</span>
+                        {canEdit && <span className="tag-chip__x">×</span>}
                       </span>
                     ))}
-                    {addingTagFor === o.id ? (
-                      <input
-                        autoFocus
-                        className="tag-input"
-                        placeholder="Enter — добавить"
-                        value={newTag}
-                        onChange={(e) => setNewTag(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') addTag(o);
-                          if (e.key === 'Escape') {
+                    {parseTags(o.tags).length === 0 && !canEdit && <span className="text-muted">—</span>}
+                    {canEdit &&
+                      (addingTagFor === o.id ? (
+                        <input
+                          autoFocus
+                          className="tag-input"
+                          placeholder="Enter — добавить"
+                          value={newTag}
+                          onChange={(e) => setNewTag(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') addTag(o);
+                            if (e.key === 'Escape') {
+                              setAddingTagFor(null);
+                              setNewTag('');
+                            }
+                          }}
+                          onBlur={() => {
                             setAddingTagFor(null);
                             setNewTag('');
-                          }
-                        }}
-                        onBlur={() => {
-                          setAddingTagFor(null);
-                          setNewTag('');
-                        }}
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        className="tag-add"
-                        title="Добавить тег"
-                        onClick={() => {
-                          setAddingTagFor(o.id);
-                          setNewTag('');
-                        }}
-                      >
-                        +
-                      </button>
-                    )}
+                          }}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          className="tag-add"
+                          title="Добавить тег"
+                          onClick={() => {
+                            setAddingTagFor(o.id);
+                            setNewTag('');
+                          }}
+                        >
+                          +
+                        </button>
+                      ))}
                   </div>
                 </td>
                 <td>{o.client?.name ?? '—'}</td>
@@ -243,14 +252,16 @@ export function Orders() {
                     <span className="cell-clip" title={o.comment ?? ''}>
                       {o.comment || '—'}
                     </span>
-                    <button
-                      type="button"
-                      className="btn btn--sm"
-                      title="Изменить комментарий"
-                      onClick={() => openComment(o)}
-                    >
-                      ✎
-                    </button>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        className="btn btn--sm"
+                        title="Изменить комментарий"
+                        onClick={() => openComment(o)}
+                      >
+                        ✎
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

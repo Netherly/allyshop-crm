@@ -4,7 +4,7 @@ import { getApiError } from '@/lib/format';
 import { Modal } from '@/components/Modal';
 import { Spinner } from '@/components/Spinner';
 import { useBusy } from '@/lib/useBusy';
-import { User } from '@/types';
+import { AppRole, User } from '@/types';
 
 interface FormState {
   id: number | null;
@@ -12,20 +12,23 @@ interface FormState {
   login: string;
   password: string;
   role: 'user' | 'super_admin';
+  role_id: number | null;
 }
 
-const emptyForm: FormState = { id: null, full_name: '', login: '', password: '', role: 'user' };
+const emptyForm: FormState = { id: null, full_name: '', login: '', password: '', role: 'user', role_id: null };
 
 export function Users() {
   const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<AppRole[]>([]);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState('');
   const save = useBusy();
 
   async function load() {
-    const res = await api.get<User[]>('/users');
-    setUsers(res.data);
+    const [u, r] = await Promise.all([api.get<User[]>('/users'), api.get<AppRole[]>('/roles')]);
+    setUsers(u.data);
+    setRoles(r.data);
   }
 
   useEffect(() => {
@@ -39,7 +42,7 @@ export function Users() {
   }
 
   function startEdit(u: User) {
-    setForm({ id: u.id, full_name: u.full_name, login: u.login, password: '', role: u.role });
+    setForm({ id: u.id, full_name: u.full_name, login: u.login, password: '', role: u.role, role_id: u.role_id });
     setError('');
     setShowForm(true);
   }
@@ -47,6 +50,10 @@ export function Users() {
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
+    if (form.role === 'user' && !form.role_id) {
+      setError('Выберите роль пользователя');
+      return;
+    }
     save.run(async () => {
       try {
         if (form.id) {
@@ -55,11 +62,18 @@ export function Users() {
             full_name: form.full_name,
             login: form.login,
             role: form.role,
+            role_id: form.role === 'super_admin' ? null : form.role_id,
           };
           if (form.password) payload.password = form.password;
           await api.patch(`/users/${form.id}`, payload);
         } else {
-          await api.post('/users', form);
+          await api.post('/users', {
+            full_name: form.full_name,
+            login: form.login,
+            password: form.password,
+            role: form.role,
+            role_id: form.role === 'super_admin' ? null : form.role_id,
+          });
         }
         setShowForm(false);
         await load();
@@ -141,11 +155,22 @@ export function Users() {
             <label className="field__label">Роль</label>
             <select
               className="select"
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value as FormState['role'] })}
+              value={form.role === 'super_admin' ? 'super' : String(form.role_id ?? '')}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === 'super') setForm({ ...form, role: 'super_admin', role_id: null });
+                else setForm({ ...form, role: 'user', role_id: v ? Number(v) : null });
+              }}
             >
-              <option value="user">Пользователь</option>
-              <option value="super_admin">Супер-админ</option>
+              <option value="" disabled>
+                — выберите роль —
+              </option>
+              <option value="super">Супер-админ (полный доступ)</option>
+              {roles.map((r) => (
+                <option key={r.id} value={String(r.id)}>
+                  {r.name}
+                </option>
+              ))}
             </select>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -174,7 +199,7 @@ export function Users() {
             <tr key={u.id}>
               <td>{u.full_name}</td>
               <td>{u.login}</td>
-              <td>{u.role === 'super_admin' ? 'Супер-админ' : 'Пользователь'}</td>
+              <td>{u.role === 'super_admin' ? 'Супер-админ' : u.role_name ?? '—'}</td>
               <td>
                 {u.is_active ? (
                   <span className="badge badge--green">Активен</span>

@@ -4,6 +4,7 @@ import { env } from './config/env.js';
 import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.js';
 import usersRouter from './routes/users.js';
+import rolesRouter from './routes/roles.js';
 import productsRouter from './routes/products.js';
 import uploadsRouter from './routes/uploads.js';
 import stockRouter from './routes/stock.js';
@@ -13,6 +14,7 @@ import ordersRouter from './routes/orders.js';
 import financeRouter from './routes/finance.js';
 import auditRouter from './routes/audit.js';
 import dashboardRouter from './routes/dashboard.js';
+import npRouter from './routes/novaposhta.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 // Собирает приложение Express. Вынесено отдельно, чтобы переиспользовать в тестах.
@@ -28,6 +30,7 @@ export function createApp() {
   app.use('/api', healthRouter);
   app.use('/api/auth', authRouter);
   app.use('/api/users', usersRouter);
+  app.use('/api/roles', rolesRouter);
   app.use('/api/products', productsRouter);
   app.use('/api/uploads', uploadsRouter);
   app.use('/api/stock', stockRouter);
@@ -37,6 +40,7 @@ export function createApp() {
   app.use('/api/finance', financeRouter);
   app.use('/api/audit', auditRouter);
   app.use('/api/dashboard', dashboardRouter);
+  app.use('/api/np', npRouter);
 
   app.use(errorHandler);
 

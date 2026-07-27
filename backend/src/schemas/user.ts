@@ -5,6 +5,8 @@ export const createUserSchema = z.object({
   login: z.string().min(3, 'Логин минимум 3 символа'),
   password: z.string().min(4, 'Пароль минимум 4 символа'),
   role: z.enum(['user', 'super_admin']).default('user'),
+  // роль-набор доступов (для обычных пользователей); у супер-админа не требуется
+  role_id: z.coerce.number().int().positive().nullable().optional(),
 });
 
 export const updateUserSchema = z.object({
@@ -12,6 +14,7 @@ export const updateUserSchema = z.object({
   login: z.string().min(3).optional(),
   password: z.string().min(4).optional(),
   role: z.enum(['user', 'super_admin']).optional(),
+  role_id: z.coerce.number().int().positive().nullable().optional(),
   is_active: z.boolean().optional(),
 });
 

@@ -23,6 +23,15 @@ export const deliverySchema = z.object({
   delivery_cost: z.coerce.number().min(0).default(0),
   delivery_status: optStr,
   np_raw_status: optStr,
+  // Данные из API Новой Почты
+  sender_name: optStr,
+  sender_city: optStr,
+  weight: optStr,
+  scheduled_delivery_date: optStr,
+  actual_delivery_date: optStr,
+  payer_type: optStr,
+  cargo_description: optStr,
+  status_code: optStr,
 });
 
 export type DeliveryInput = z.infer<typeof deliverySchema>;

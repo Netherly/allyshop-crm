@@ -49,6 +49,8 @@ a {
   flex-shrink: 0;
   background: var(--sidebar);
   color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar__brand {
@@ -63,6 +65,47 @@ a {
   flex-direction: column;
   gap: 4px;
   padding: 0 12px;
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+
+/* Блок пользователя внизу сайдбара */
+.sidebar__user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar__username {
+  font-size: 13px;
+  color: #cbd5e1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar__logout {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.sidebar__logout:hover {
+  background: var(--sidebar-hover);
+  color: #fff;
 }
 
 .nav-link {
@@ -231,6 +274,36 @@ a {
 .input--readonly {
   background: var(--canvas);
   color: var(--text-muted);
+}
+
+/* Группы доступов на странице «Доступы» */
+.perm-group {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.perm-group__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+.perm-group__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 8px;
+  padding-left: 24px;
+}
+.perm-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
 }
 
 /* Индикатор загрузки (спиннер) */
@@ -738,6 +811,20 @@ a {
   padding-top: 12px;
   font-size: 18px;
   font-weight: 600;
+}
+
+/* Нижние блоки заказа (итоги/оплаты/доставка) — рядом на широком экране, стопкой на узком */
+.order-lower {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+  margin-top: 16px;
+}
+.order-lower > .card {
+  flex: 1 1 320px;
+  max-width: 520px;
+  margin: 0;
 }
 
 /* Бейджи движений склада */

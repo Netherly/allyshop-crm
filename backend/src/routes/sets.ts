@@ -2,13 +2,13 @@ import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
-import { requireAuth, requireSuperAdmin } from '../middleware/auth.js';
+import { requireAuth, requirePermission } from '../middleware/auth.js';
 import { createSetSchema, updateSetSchema } from '../schemas/set.js';
 import { getSetsAvailability } from '../services/sets.js';
 import { parsePagination, paginated } from '../lib/pagination.js';
 
 const router = Router();
-router.use(requireAuth);
+router.use(requireAuth, requirePermission('sets.view'));
 
 // Состав набора с данными товаров.
 const itemsInclude = {
@@ -88,7 +88,7 @@ router.get(
 // Создание набора с составом (только супер-админ).
 router.post(
   '/',
-  requireSuperAdmin,
+  requirePermission('sets.create'),
   asyncHandler(async (req, res) => {
     const data = createSetSchema.parse(req.body);
     const set = await prisma.set.create({
@@ -106,7 +106,7 @@ router.post(
 // Обновление набора. Если передан состав — заменяем его целиком.
 router.patch(
   '/:id',
-  requireSuperAdmin,
+  requirePermission('sets.edit'),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id);
     const data = updateSetSchema.parse(req.body);
@@ -136,7 +136,7 @@ router.patch(
 // Архивирование вместо удаления.
 router.delete(
   '/:id',
-  requireSuperAdmin,
+  requirePermission('sets.delete'),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id);
     const set = await prisma.set.update({ where: { id }, data: { is_active: false } });

@@ -13,6 +13,7 @@ import { Orders } from '@/pages/Orders';
 import { OrderCard } from '@/pages/OrderCard';
 import { Finance } from '@/pages/Finance';
 import { AuditLog } from '@/pages/AuditLog';
+import { Access } from '@/pages/Access';
 import { ProtectedRoute, RequireSuperAdmin } from '@/components/ProtectedRoute';
 
 export function App() {
@@ -39,19 +40,20 @@ export function App() {
         <Route path="orders/new" element={<OrderCard />} />
         <Route path="orders/:id" element={<OrderCard />} />
         <Route path="finance" element={<Finance />} />
-        <Route
-          path="audit"
-          element={
-            <RequireSuperAdmin>
-              <AuditLog />
-            </RequireSuperAdmin>
-          }
-        />
+        <Route path="audit" element={<AuditLog />} />
         <Route
           path="users"
           element={
             <RequireSuperAdmin>
               <Users />
+            </RequireSuperAdmin>
+          }
+        />
+        <Route
+          path="access"
+          element={
+            <RequireSuperAdmin>
+              <Access />
             </RequireSuperAdmin>
           }
         />

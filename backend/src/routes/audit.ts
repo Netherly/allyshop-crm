@@ -2,11 +2,11 @@ import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
-import { requireAuth, requireSuperAdmin } from '../middleware/auth.js';
+import { requireAuth, requirePermission } from '../middleware/auth.js';
 import { parsePagination, paginated } from '../lib/pagination.js';
 
 const router = Router();
-router.use(requireAuth, requireSuperAdmin);
+router.use(requireAuth, requirePermission('audit.view'));
 
 // Журнал действий с фильтром по сущности.
 router.get(
