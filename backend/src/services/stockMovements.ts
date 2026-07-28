@@ -111,6 +111,7 @@ export async function createBulkMovements(
 }
 
 interface UpdateInput {
+  movement_type?: string;
   product_id?: number;
   quantity?: number;
   price?: number;
@@ -130,11 +131,13 @@ export async function updateMovement(id: number, input: UpdateInput, _userId: nu
   const quantity = input.quantity ?? existing.quantity;
   const price = input.price ?? Number(existing.price);
   const productId = input.product_id ?? existing.product_id;
+  const movementType = input.movement_type ?? existing.movement_type;
 
   return prisma.$transaction(async (tx) => {
     await tx.stockMovement.update({
       where: { id },
       data: {
+        movement_type: movementType,
         product_id: productId,
         quantity,
         price,

@@ -115,7 +115,7 @@ export function Access() {
           {roles.map((r) => (
             <tr key={r.id}>
               <td>{r.name}</td>
-              <td>{r.permissions.length}</td>
+              <td>{r.id === -1 ? 'Все' : r.permissions.length}</td>
               <td>{r.users_count ?? 0}</td>
               <td style={{ display: 'flex', gap: 8 }}>
                 <button className="btn btn--sm" onClick={() => startEdit(r)} disabled={r.is_system}>

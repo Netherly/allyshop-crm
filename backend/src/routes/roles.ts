@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requireSuperAdmin } from '../middleware/auth.js';
-import { PERMISSION_CATALOG } from '../lib/permissions.js';
+import { PERMISSION_CATALOG, ALL_PERMISSION_KEYS } from '../lib/permissions.js';
 import { createRoleSchema, updateRoleSchema } from '../schemas/role.js';
 
 const router = Router();
@@ -16,14 +16,28 @@ router.get('/permissions', (_req, res) => {
 });
 
 // Список ролей с числом пользователей.
+// Первой строкой — системный супер-админ (полный доступ, править/удалять нельзя).
 router.get(
   '/',
   asyncHandler(async (_req, res) => {
-    const roles = await prisma.appRole.findMany({
-      orderBy: { id: 'asc' },
-      include: { _count: { select: { users: true } } },
-    });
-    res.json(roles.map((r) => ({ ...r, users_count: r._count.users })));
+    const [roles, superAdmins] = await Promise.all([
+      prisma.appRole.findMany({
+        orderBy: { id: 'asc' },
+        include: { _count: { select: { users: true } } },
+      }),
+      prisma.user.count({ where: { role: 'super_admin' } }),
+    ]);
+    const now = new Date();
+    const superAdminRow = {
+      id: -1,
+      name: 'Администратор (супер-админ)',
+      permissions: ALL_PERMISSION_KEYS,
+      is_system: true,
+      created_at: now,
+      updated_at: now,
+      users_count: superAdmins,
+    };
+    res.json([superAdminRow, ...roles.map((r) => ({ ...r, users_count: r._count.users }))]);
   }),
 );
 

@@ -107,12 +107,16 @@ router.patch(
       res.status(404).json({ error: 'Движение не найдено' });
       return;
     }
-    if (CORRECTIONS.includes(existing.movement_type) && !req.user!.permissions.includes('stock.corrections')) {
+    const data = updateMovementSchema.parse(req.body);
+    // Корректировки требуют отдельного доступа — и текущий тип, и новый (если меняется).
+    const touchesCorrection =
+      CORRECTIONS.includes(existing.movement_type) ||
+      (data.movement_type != null && CORRECTIONS.includes(data.movement_type));
+    if (touchesCorrection && !req.user!.permissions.includes('stock.corrections')) {
       res.status(403).json({ error: 'Нет доступа к корректировкам склада' });
       return;
     }
 
-    const data = updateMovementSchema.parse(req.body);
     const updated = await updateMovement(id, data, req.user!.id);
     await logAudit({
       userId: req.user!.id,

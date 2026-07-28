@@ -20,9 +20,10 @@ export const manualMovementSchema = z
 
 export type ManualMovementInput = z.infer<typeof manualMovementSchema>;
 
-// Правка существующего движения: только количество, цена, товар, комментарий, дата.
-// Тип движения и «наборность» не меняем — иначе пришлось бы пересобирать компоненты.
+// Правка существующего движения: тип, количество, цена, товар, комментарий, дата.
+// «Наборность» (set_id) не меняем — иначе пришлось бы пересобирать компоненты.
 export const updateMovementSchema = z.object({
+  movement_type: z.enum(['приход', 'расход', 'корректировка_плюс', 'корректировка_минус']).optional(),
   product_id: z.coerce.number().int().positive().optional(),
   quantity: z.coerce.number().int().positive('Количество должно быть больше нуля').optional(),
   price: z.coerce.number().min(0).optional(),

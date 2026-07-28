@@ -50,6 +50,7 @@ export function Movements() {
 
   // Правка существующего движения.
   const [editing, setEditing] = useState<StockMovement | null>(null);
+  const [editType, setEditType] = useState('приход');
   const [editProduct, setEditProduct] = useState<PickedProduct | null>(null);
   const [editQty, setEditQty] = useState('');
   const [editPrice, setEditPrice] = useState('');
@@ -119,6 +120,7 @@ export function Movements() {
   // Открывает правку записи. Товар в наборных движениях менять нельзя (set_id != null).
   function openEdit(m: StockMovement) {
     setEditing(m);
+    setEditType(m.movement_type);
     setEditProduct(m.product ? { id: m.product.id, label: productTitle(m.product) } : null);
     setEditQty(String(m.quantity));
     setEditPrice(String(Number(m.price)));
@@ -134,6 +136,7 @@ export function Movements() {
     edit.run(async () => {
       try {
         await api.patch(`/stock/movements/${editing.id}`, {
+          movement_type: editType,
           product_id: !isSet ? editProduct?.id : undefined,
           quantity: Number(editQty),
           price: !isSet ? Number(editPrice) || 0 : undefined,
@@ -302,6 +305,19 @@ export function Movements() {
       >
         <form onSubmit={submitEdit}>
           {editError && <div className="form-error">{editError}</div>}
+          <div className="field">
+            <label className="field__label">Тип движения</label>
+            <select
+              className="input"
+              value={editType}
+              onChange={(e) => setEditType(e.target.value)}
+            >
+              <option value="приход">Приход</option>
+              <option value="расход">Расход</option>
+              {canCorrect && <option value="корректировка_плюс">Корректировка +</option>}
+              {canCorrect && <option value="корректировка_минус">Корректировка −</option>}
+            </select>
+          </div>
           {editing?.set_id != null ? (
             // Наборное движение: товар зафиксирован составом набора.
             <div className="field">
