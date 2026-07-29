@@ -402,6 +402,62 @@ a {
   color: #475569;
 }
 
+.badge--blue {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.badge--amber {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge--red {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Read-only блок «Данные из Новой Почты» в карточке заказа */
+.np-panel {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--canvas);
+}
+
+.np-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.np-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px 16px;
+  padding: 12px;
+}
+
+.np-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.np-row__label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.np-row__value {
+  font-size: 14px;
+}
+
 /* Список тегов-чипсов в таблице */
 .tag-list {
   display: flex;

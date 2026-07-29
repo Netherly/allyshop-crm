@@ -35,6 +35,7 @@ router.get(
         include: {
           client: { select: { name: true } },
           manager: { select: { full_name: true, role: true } },
+          delivery: { select: { ttn: true, delivery_status: true, status_code: true } },
           _count: { select: { order_items: true } },
         },
         orderBy: { id: 'desc' },

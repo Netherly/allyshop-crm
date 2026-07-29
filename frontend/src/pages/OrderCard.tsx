@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 import { formatMoney, getApiError, productTitle } from '@/lib/format';
 import { ItemPicker, PickedEntity } from '@/components/ItemPicker';
 import { NpAutocomplete } from '@/components/NpAutocomplete';
+import { DeliveryStatusBadge } from '@/components/DeliveryStatusBadge';
 import { PickedItem } from '@/components/SearchPicker';
 import { ClientPicker } from '@/components/ClientPicker';
 import { Modal } from '@/components/Modal';
@@ -309,6 +310,34 @@ export function OrderCard() {
         setDeliverySaved(false);
       } catch (err) {
         setDeliveryError(getApiError(err, 'Не удалось получить данные по ТТН'));
+      }
+    });
+  }
+
+  // Обновить только данные из НП (статус, даты, отправитель и т.д.),
+  // не перезаписывая вручную введённых получателя/город/отделение.
+  function refreshStatus() {
+    const ttn = delivery.ttn.trim();
+    if (!ttn) return;
+    setDeliveryError('');
+    track.run(async () => {
+      try {
+        const { data } = await api.get(`/np/track/${ttn}`);
+        setDelivery((d) => ({
+          ...d,
+          delivery_status: data.delivery_status ?? d.delivery_status,
+          status_code: data.status_code ?? d.status_code,
+          sender_name: data.sender_name ?? d.sender_name,
+          sender_city: data.sender_city ?? d.sender_city,
+          weight: data.weight ?? d.weight,
+          scheduled_delivery_date: data.scheduled_delivery_date ?? d.scheduled_delivery_date,
+          actual_delivery_date: data.actual_delivery_date ?? d.actual_delivery_date,
+          payer_type: data.payer_type ?? d.payer_type,
+          cargo_description: data.cargo_description ?? d.cargo_description,
+        }));
+        setDeliverySaved(false);
+      } catch (err) {
+        setDeliveryError(getApiError(err, 'Не удалось обновить статус'));
       }
     });
   }
@@ -725,76 +754,12 @@ export function OrderCard() {
               />
             </div>
             <div className="field">
-              <label className="field__label">Статус доставки</label>
-              <input
-                className="input"
-                value={delivery.delivery_status}
-                onChange={(e) => setDeliveryField('delivery_status', e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label className="field__label">Тип плательщика (НП)</label>
-              <input
-                className="input"
-                value={delivery.payer_type}
-                onChange={(e) => setDeliveryField('payer_type', e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label className="field__label">Вес, кг</label>
-              <input
-                className="input"
-                value={delivery.weight}
-                onChange={(e) => setDeliveryField('weight', e.target.value)}
-              />
-            </div>
-            <div className="field">
               <label className="field__label">Стоимость доставки</label>
               <input
                 className="input"
                 type="number"
                 value={delivery.delivery_cost}
                 onChange={(e) => setDeliveryField('delivery_cost', e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label className="field__label">Плановая дата</label>
-              <input
-                className="input"
-                value={delivery.scheduled_delivery_date}
-                onChange={(e) => setDeliveryField('scheduled_delivery_date', e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label className="field__label">Фактическая дата</label>
-              <input
-                className="input"
-                value={delivery.actual_delivery_date}
-                onChange={(e) => setDeliveryField('actual_delivery_date', e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label className="field__label">Отправитель</label>
-              <input
-                className="input"
-                value={delivery.sender_name}
-                onChange={(e) => setDeliveryField('sender_name', e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label className="field__label">Город отправителя</label>
-              <input
-                className="input"
-                value={delivery.sender_city}
-                onChange={(e) => setDeliveryField('sender_city', e.target.value)}
-              />
-            </div>
-            <div className="field field--full">
-              <label className="field__label">Описание груза</label>
-              <input
-                className="input"
-                value={delivery.cargo_description}
-                onChange={(e) => setDeliveryField('cargo_description', e.target.value)}
               />
             </div>
             <div className="field">
@@ -810,6 +775,63 @@ export function OrderCard() {
               </select>
             </div>
           </div>
+
+          {/* Данные из Новой Почты — только чтение, заполняются по ТТН */}
+          {(delivery.status_code ||
+            delivery.delivery_status ||
+            delivery.sender_name ||
+            delivery.weight ||
+            delivery.cargo_description) && (
+            <div className="np-panel">
+              <div className="np-panel__head">
+                <span>Данные из Новой Почты</span>
+                <button
+                  type="button"
+                  className="btn btn--sm"
+                  onClick={refreshStatus}
+                  disabled={track.busy || !delivery.ttn.trim()}
+                >
+                  {track.busy ? <Spinner label="Обновление…" /> : 'Обновить статус'}
+                </button>
+              </div>
+              <div className="np-panel__grid">
+                <div className="np-row">
+                  <span className="np-row__label">Статус</span>
+                  <span className="np-row__value">
+                    <DeliveryStatusBadge status={delivery.delivery_status} code={delivery.status_code} />
+                  </span>
+                </div>
+                <div className="np-row">
+                  <span className="np-row__label">Отправитель</span>
+                  <span className="np-row__value">{delivery.sender_name || '—'}</span>
+                </div>
+                <div className="np-row">
+                  <span className="np-row__label">Город отправителя</span>
+                  <span className="np-row__value">{delivery.sender_city || '—'}</span>
+                </div>
+                <div className="np-row">
+                  <span className="np-row__label">Вес, кг</span>
+                  <span className="np-row__value">{delivery.weight || '—'}</span>
+                </div>
+                <div className="np-row">
+                  <span className="np-row__label">Тип плательщика (НП)</span>
+                  <span className="np-row__value">{delivery.payer_type || '—'}</span>
+                </div>
+                <div className="np-row">
+                  <span className="np-row__label">Плановая дата</span>
+                  <span className="np-row__value">{delivery.scheduled_delivery_date || '—'}</span>
+                </div>
+                <div className="np-row">
+                  <span className="np-row__label">Фактическая дата</span>
+                  <span className="np-row__value">{delivery.actual_delivery_date || '—'}</span>
+                </div>
+                <div className="np-row">
+                  <span className="np-row__label">Описание груза</span>
+                  <span className="np-row__value">{delivery.cargo_description || '—'}</span>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="actions">
             <button className="btn btn--primary" type="submit" disabled={deliv.busy}>
               {deliv.busy ? <Spinner label="Сохранение…" /> : 'Сохранить доставку'}

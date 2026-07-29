@@ -186,6 +186,7 @@ export interface OrderListItem {
   items_count: number;
   client?: { name: string } | null;
   manager?: { full_name: string; role: Role };
+  delivery?: { ttn: string | null; delivery_status: string | null; status_code: string | null } | null;
 }
 
 export interface StockMovement {

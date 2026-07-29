@@ -5,6 +5,7 @@ import { formatDateShort, formatMoney, getApiError } from '@/lib/format';
 import { Pagination } from '@/components/Pagination';
 import { Modal } from '@/components/Modal';
 import { Spinner } from '@/components/Spinner';
+import { DeliveryStatusBadge } from '@/components/DeliveryStatusBadge';
 import { useBusy } from '@/lib/useBusy';
 import { useAuth } from '@/lib/auth';
 import { ORDER_STATUSES, ORDER_TYPES } from '@/lib/orderConstants';
@@ -172,6 +173,7 @@ export function Orders() {
               <th>Поз.</th>
               <th>Статус</th>
               <th>Оплата</th>
+              <th>Доставка</th>
               <th>Сумма</th>
               <th>Комментарий</th>
             </tr>
@@ -246,6 +248,16 @@ export function Orders() {
                   <span className="badge">{o.status}</span>
                 </td>
                 <td>{o.payment_status}</td>
+                <td>
+                  {o.delivery?.ttn || o.delivery?.status_code ? (
+                    <DeliveryStatusBadge
+                      status={o.delivery.delivery_status}
+                      code={o.delivery.status_code}
+                    />
+                  ) : (
+                    <span className="text-muted">—</span>
+                  )}
+                </td>
                 <td>{formatMoney(o.total_amount)}</td>
                 <td onClick={(e) => e.stopPropagation()}>
                   <div className="comment-cell">
@@ -268,7 +280,7 @@ export function Orders() {
             ))}
             {orders.length === 0 && (
               <tr>
-                <td colSpan={11} className="text-muted">
+                <td colSpan={12} className="text-muted">
                   Заказов не найдено
                 </td>
               </tr>
