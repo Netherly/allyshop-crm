@@ -2,5 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npx prisma migrate deploy && npx prisma generate",
   "outputDirectory": ".",
-"rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
+  "crons": [{ "path": "/api/cron/refresh-deliveries", "schedule": "0 */6 * * *" }]
 }

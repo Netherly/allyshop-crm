@@ -15,6 +15,7 @@ import financeRouter from './routes/finance.js';
 import auditRouter from './routes/audit.js';
 import dashboardRouter from './routes/dashboard.js';
 import npRouter from './routes/novaposhta.js';
+import cronRouter from './routes/cron.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 // Собирает приложение Express. Вынесено отдельно, чтобы переиспользовать в тестах.
@@ -41,6 +42,7 @@ export function createApp() {
   app.use('/api/audit', auditRouter);
   app.use('/api/dashboard', dashboardRouter);
   app.use('/api/np', npRouter);
+  app.use('/api/cron', cronRouter);
 
   app.use(errorHandler);
 

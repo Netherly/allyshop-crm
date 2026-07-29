@@ -28,17 +28,18 @@ router.get(
   }),
 );
 
-// Автоподсказка отделений/почтоматов по городу.
+// Автоподсказка отделений/почтоматов по городу (по CityRef; ref можно передать готовым).
 router.get(
   '/warehouses',
   asyncHandler(async (req, res) => {
     const city = String(req.query.city ?? '').trim();
+    const cityRef = String(req.query.ref ?? '').trim();
     const q = String(req.query.q ?? '').trim();
-    if (!city) {
+    if (!city && !cityRef) {
       res.json([]);
       return;
     }
-    res.json(await np.getWarehouses(city, q));
+    res.json(await np.getWarehouses({ cityRef, city, q }));
   }),
 );
 

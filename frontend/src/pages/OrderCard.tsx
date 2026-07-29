@@ -1,10 +1,11 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '@/lib/api';
-import { formatMoney, getApiError, productTitle } from '@/lib/format';
+import { formatMoney, getApiError, productTitle, formatAgo } from '@/lib/format';
 import { ItemPicker, PickedEntity } from '@/components/ItemPicker';
 import { NpAutocomplete } from '@/components/NpAutocomplete';
 import { DeliveryStatusBadge } from '@/components/DeliveryStatusBadge';
+import { suggestOrderStatus } from '@/lib/deliveryStatus';
 import { PickedItem } from '@/components/SearchPicker';
 import { ClientPicker } from '@/components/ClientPicker';
 import { Modal } from '@/components/Modal';
@@ -93,9 +94,12 @@ export function OrderCard() {
     payer_type: '',
     cargo_description: '',
     status_code: '',
+    last_tracked_at: '',
   });
   const [deliverySaved, setDeliverySaved] = useState(false);
   const [deliveryError, setDeliveryError] = useState('');
+  // CityRef выбранного города (для запроса отделений). В БД не храним — только в рамках правки.
+  const [cityRef, setCityRef] = useState('');
   const track = useBusy();
 
   const loadOrder = useCallback(async () => {
@@ -140,6 +144,7 @@ export function OrderCard() {
       payer_type: d?.payer_type ?? '',
       cargo_description: d?.cargo_description ?? '',
       status_code: d?.status_code ?? '',
+      last_tracked_at: d?.last_tracked_at ?? '',
     });
   }, [id, isNew]);
 
@@ -340,6 +345,17 @@ export function OrderCard() {
         setDeliveryError(getApiError(err, 'Не удалось обновить статус'));
       }
     });
+  }
+
+  // Применить подсказанный статус заказа (по статусу ТТН) — одним кликом.
+  async function applyOrderStatus(next: string) {
+    setDeliveryError('');
+    try {
+      await api.patch(`/orders/${id}`, { status: next });
+      await loadOrder();
+    } catch (err) {
+      setDeliveryError(getApiError(err, 'Не удалось изменить статус заказа'));
+    }
   }
 
   function handleSave() {
@@ -593,6 +609,7 @@ export function OrderCard() {
       </div>
 
       <div className="order-lower">
+        <div className="order-row">
         <div className="card">
           <div className="order-total-row">
             <span>Подытог</span>
@@ -689,11 +706,13 @@ export function OrderCard() {
           </table>
         </div>
       )}
+        </div>
 
       {!isNew && order && (
-        <form className="card" onSubmit={saveDelivery}>
+        <form className="card order-delivery" onSubmit={saveDelivery}>
           <h3 style={{ marginBottom: 12 }}>Доставка (Новая Почта)</h3>
           {deliveryError && <div className="form-error">{deliveryError}</div>}
+          <div className="delivery-cols">
           <div className="form-grid">
             <div className="field field--full">
               <label className="field__label">ТТН</label>
@@ -736,7 +755,11 @@ export function OrderCard() {
               <label className="field__label">Город</label>
               <NpAutocomplete
                 value={delivery.city}
-                onChange={(v) => setDeliveryField('city', v)}
+                onChange={(v) => {
+                  setDeliveryField('city', v);
+                  setCityRef(''); // при ручной правке ref сбрасываем — бэкенд резолвит по названию
+                }}
+                onSelect={(it) => setCityRef(it.ref ?? '')}
                 fetchItems={(q) => api.get('/np/cities', { params: { q } }).then((r) => r.data)}
                 placeholder="начните вводить город"
               />
@@ -746,10 +769,15 @@ export function OrderCard() {
               <NpAutocomplete
                 value={delivery.branch}
                 onChange={(v) => setDeliveryField('branch', v)}
+                minChars={0}
                 fetchItems={(q) =>
-                  api.get('/np/warehouses', { params: { city: delivery.city, q } }).then((r) => r.data)
+                  api
+                    .get('/np/warehouses', {
+                      params: { city: delivery.city, ref: cityRef || undefined, q: q || undefined },
+                    })
+                    .then((r) => r.data)
                 }
-                placeholder={delivery.city ? 'начните вводить отделение' : 'сначала выберите город'}
+                placeholder={delivery.city ? 'номер или адрес отделения' : 'сначала выберите город'}
                 disabled={!delivery.city}
               />
             </div>
@@ -785,15 +813,39 @@ export function OrderCard() {
             <div className="np-panel">
               <div className="np-panel__head">
                 <span>Данные из Новой Почты</span>
-                <button
-                  type="button"
-                  className="btn btn--sm"
-                  onClick={refreshStatus}
-                  disabled={track.busy || !delivery.ttn.trim()}
-                >
-                  {track.busy ? <Spinner label="Обновление…" /> : 'Обновить статус'}
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {delivery.last_tracked_at && (
+                    <span className="text-muted" style={{ fontSize: 12, fontWeight: 400 }}>
+                      обновлено {formatAgo(delivery.last_tracked_at)}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn--sm"
+                    onClick={refreshStatus}
+                    disabled={track.busy || !delivery.ttn.trim()}
+                  >
+                    {track.busy ? <Spinner label="Обновление…" /> : 'Обновить статус'}
+                  </button>
+                </div>
               </div>
+              {(() => {
+                const next = suggestOrderStatus(delivery.status_code, status);
+                return next ? (
+                  <div className="np-suggest">
+                    <span>
+                      По статусу ТТН заказ можно перевести в «{next}». Сейчас: «{status}».
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn--sm btn--primary"
+                      onClick={() => applyOrderStatus(next)}
+                    >
+                      Пометить как «{next}»
+                    </button>
+                  </div>
+                ) : null;
+              })()}
               <div className="np-panel__grid">
                 <div className="np-row">
                   <span className="np-row__label">Статус</span>
@@ -832,6 +884,7 @@ export function OrderCard() {
               </div>
             </div>
           )}
+          </div>
           <div className="actions">
             <button className="btn btn--primary" type="submit" disabled={deliv.busy}>
               {deliv.busy ? <Spinner label="Сохранение…" /> : 'Сохранить доставку'}

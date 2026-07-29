@@ -33,13 +33,9 @@ async function call(modelName: string, calledMethod: string, methodProperties: R
   return json.data ?? [];
 }
 
-// Отслеживание по ТТН — возвращаем нормализованные поля доставки.
-export async function trackByTtn(ttn: string, phone = '') {
-  const data = await call('TrackingDocument', 'getStatusDocuments', {
-    Documents: [{ DocumentNumber: ttn, Phone: phone }],
-  });
-  const d = data[0];
-  if (!d || d.StatusCode === '3') throw new AppError(404, 'ТТН не найдена');
+// Нормализуем ответ getStatusDocuments в поля нашей доставки.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeStatusDoc(d: any, ttn: string) {
   return {
     ttn,
     delivery_status: d.Status ?? null,
@@ -60,17 +56,70 @@ export async function trackByTtn(ttn: string, phone = '') {
   };
 }
 
+export type TrackedDoc = ReturnType<typeof normalizeStatusDoc>;
+
+// Отслеживание по ТТН — возвращаем нормализованные поля доставки.
+export async function trackByTtn(ttn: string, phone = '') {
+  const data = await call('TrackingDocument', 'getStatusDocuments', {
+    Documents: [{ DocumentNumber: ttn, Phone: phone }],
+  });
+  const d = data[0];
+  if (!d || d.StatusCode === '3') throw new AppError(404, 'ТТН не найдена');
+  return normalizeStatusDoc(d, ttn);
+}
+
+// Батч-трекинг: до 100 ТТН за один запрос. Возвращаем карту ttn → данные.
+// Не найденные (StatusCode 3) пропускаем. Читающий метод — ограничение ключа не нарушаем.
+export async function trackBatch(ttns: string[]): Promise<Map<string, TrackedDoc>> {
+  const result = new Map<string, TrackedDoc>();
+  for (let i = 0; i < ttns.length; i += 100) {
+    const chunk = ttns.slice(i, i + 100);
+    const data = await call('TrackingDocument', 'getStatusDocuments', {
+      Documents: chunk.map((n) => ({ DocumentNumber: n, Phone: '' })),
+    });
+    for (const d of data) {
+      const num = d.Number != null ? String(d.Number) : null;
+      if (!num || d.StatusCode === '3') continue;
+      result.set(num, normalizeStatusDoc(d, num));
+    }
+  }
+  return result;
+}
+
 // Поиск населённых пунктов (автоподсказка города).
+// ref — это CityRef (DeliveryCity) для последующего запроса отделений.
 export async function searchCities(q: string) {
   const data = await call('Address', 'searchSettlements', { CityName: q, Limit: '10' });
   const addresses = data[0]?.Addresses ?? [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return addresses.map((a: any) => ({ ref: a.Ref ?? a.DeliveryCity ?? null, name: a.Present ?? a.MainDescription ?? '' }));
+  return addresses.map((a: any) => ({ ref: a.DeliveryCity ?? a.Ref ?? null, name: a.Present ?? a.MainDescription ?? '' }));
 }
 
-// Отделения/почтоматы по городу.
-export async function getWarehouses(city: string, q = '') {
-  const data = await call('Address', 'getWarehouses', { CityName: city, FindByString: q, Limit: '20' });
+// Кэш «название города → CityRef», чтобы не резолвить один и тот же город на каждый ввод.
+const cityRefCache = new Map<string, { ref: string | null; ts: number }>();
+const CITY_CACHE_TTL = 60 * 60 * 1000; // час
+
+// Резолвит название города в CityRef (getWarehouses по названию с областью не находит).
+async function resolveCityRef(city: string): Promise<string | null> {
+  const key = city.trim().toLowerCase();
+  const cached = cityRefCache.get(key);
+  if (cached && Date.now() - cached.ts < CITY_CACHE_TTL) return cached.ref;
+  const data = await call('Address', 'searchSettlements', { CityName: city, Limit: '1' });
+  const a = data[0]?.Addresses?.[0];
+  const ref = a?.DeliveryCity ?? a?.Ref ?? null;
+  cityRefCache.set(key, { ref, ts: Date.now() });
+  return ref;
+}
+
+// Отделения/почтоматы. Ищем по CityRef: если ref не передан — резолвим из названия города.
+export async function getWarehouses(opts: { cityRef?: string; city?: string; q?: string }) {
+  const cityRef = opts.cityRef?.trim() || (opts.city ? await resolveCityRef(opts.city) : null);
+  if (!cityRef) return [];
+  const data = await call('Address', 'getWarehouses', {
+    CityRef: cityRef,
+    FindByString: opts.q ?? '',
+    Limit: '20',
+  });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return data.map((w: any) => ({ ref: w.Ref, name: w.Description }));
 }

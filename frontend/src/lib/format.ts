@@ -18,6 +18,21 @@ export function formatDateTime(value: string): string {
   });
 }
 
+// Относительное время: «только что / N мин / N ч / N дн назад». Для «обновлено … назад».
+export function formatAgo(value: string | null | undefined): string {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  const sec = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (sec < 60) return 'только что';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} мин назад`;
+  const hours = Math.floor(min / 60);
+  if (hours < 24) return `${hours} ч назад`;
+  const days = Math.floor(hours / 24);
+  return `${days} дн назад`;
+}
+
 // Дата-время без года: ДД.ММ ЧЧ:ММ — для таблиц, где год не нужен.
 export function formatDateShort(value: string): string {
   const d = new Date(value);

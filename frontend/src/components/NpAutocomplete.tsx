@@ -11,11 +11,21 @@ interface Props {
   fetchItems: (q: string) => Promise<NpItem[]>;
   placeholder?: string;
   disabled?: boolean;
+  minChars?: number; // с какой длины запроса подгружать (0 — даже пустой, для отделений)
+  onSelect?: (item: NpItem) => void; // выбор пункта из списка (даёт ref)
 }
 
 // Поле с автоподсказкой из справочников Новой Почты. Если API недоступно (нет ключа) —
 // просто работает как обычный текстовый ввод (подсказок нет, но печатать можно).
-export function NpAutocomplete({ value, onChange, fetchItems, placeholder, disabled }: Props) {
+export function NpAutocomplete({
+  value,
+  onChange,
+  fetchItems,
+  placeholder,
+  disabled,
+  minChars = 2,
+  onSelect,
+}: Props) {
   const [items, setItems] = useState<NpItem[]>([]);
   const [open, setOpen] = useState(false);
   const skipNext = useRef(false);
@@ -27,7 +37,7 @@ export function NpAutocomplete({ value, onChange, fetchItems, placeholder, disab
       return;
     }
     const q = value.trim();
-    if (q.length < 2) {
+    if (q.length < minChars) {
       setItems([]);
       return;
     }
@@ -50,6 +60,17 @@ export function NpAutocomplete({ value, onChange, fetchItems, placeholder, disab
     return () => document.removeEventListener('mousedown', onDoc);
   }, []);
 
+  // Подгрузка при фокусе (нужно для minChars=0: показать список отделений без ввода).
+  async function fetchNow() {
+    const q = value.trim();
+    if (q.length < minChars) return;
+    try {
+      setItems(await fetchItems(q));
+    } catch {
+      setItems([]);
+    }
+  }
+
   return (
     <div className="picker" ref={boxRef}>
       <input
@@ -61,7 +82,10 @@ export function NpAutocomplete({ value, onChange, fetchItems, placeholder, disab
           onChange(e.target.value);
           setOpen(true);
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => {
+          setOpen(true);
+          if (items.length === 0) fetchNow();
+        }}
       />
       {open && items.length > 0 && (
         <ul className="picker__list">
@@ -72,6 +96,7 @@ export function NpAutocomplete({ value, onChange, fetchItems, placeholder, disab
               onClick={() => {
                 skipNext.current = true;
                 onChange(it.name);
+                onSelect?.(it);
                 setOpen(false);
               }}
             >

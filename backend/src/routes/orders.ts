@@ -94,10 +94,12 @@ router.put(
       return;
     }
     const data = deliverySchema.parse(req.body);
+    // Если пришёл статус из НП — фиксируем момент актуальности.
+    const tracked = data.status_code ? { last_tracked_at: new Date() } : {};
     const delivery = await prisma.orderDelivery.upsert({
       where: { order_id: orderId },
-      create: { order_id: orderId, ...data },
-      update: data,
+      create: { order_id: orderId, ...data, ...tracked },
+      update: { ...data, ...tracked },
     });
     res.json(delivery);
   }),

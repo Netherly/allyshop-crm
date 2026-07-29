@@ -120,6 +120,7 @@ export interface OrderDelivery {
   payer_type: string | null;
   cargo_description: string | null;
   status_code: string | null;
+  last_tracked_at: string | null;
 }
 
 export interface Order {

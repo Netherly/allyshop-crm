@@ -284,6 +284,7 @@ model OrderDelivery {
   payer_type              String? // Sender | Recipient | ThirdPerson
   cargo_description       String?
   status_code             String?
+  last_tracked_at         DateTime? // когда последний раз тянули статус из НП
 
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt

@@ -436,6 +436,18 @@ a {
   font-size: 14px;
 }
 
+.np-suggest {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: #eff6ff;
+  font-size: 13px;
+}
+
 .np-panel__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -872,15 +884,42 @@ a {
 /* Нижние блоки заказа (итоги/оплаты/доставка) — рядом на широком экране, стопкой на узком */
 .order-lower {
   display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+/* Строка с карточками (итоги + оплаты) — рядом, с переносом на узких экранах */
+.order-row {
+  display: flex;
   flex-wrap: wrap;
   gap: 16px;
   align-items: flex-start;
-  margin-top: 16px;
 }
-.order-lower > .card {
+.order-row > .card {
   flex: 1 1 320px;
   max-width: 520px;
   margin: 0;
+}
+
+/* Карточка доставки — на всю ширину под строкой итоги/оплаты */
+.order-delivery {
+  margin: 0;
+}
+
+/* Внутри доставки: ручные поля и данные из НП — в две колонки */
+.delivery-cols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  align-items: flex-start;
+}
+.delivery-cols > * {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.delivery-cols .np-panel {
+  margin-top: 0;
 }
 
 /* Бейджи движений склада */
