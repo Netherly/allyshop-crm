@@ -891,12 +891,12 @@ a {
   margin-top: 16px;
 }
 
-/* Строка с карточками (итоги + оплаты) — рядом, с переносом на узких экранах */
+/* Строка с карточками (итоги + оплаты) — рядом, одинаковой высоты, с переносом на узких экранах */
 .order-row {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
-  align-items: flex-start;
+  align-items: stretch;
 }
 .order-row > .card {
   flex: 1 1 320px;
