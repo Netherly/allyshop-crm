@@ -124,7 +124,7 @@ export function AuditLog() {
   }, [load]);
 
   return (
-    <div>
+    <div className="page-fill">
       <h1 className="page-title">История действий</h1>
 
       <div className="toolbar">
@@ -145,6 +145,7 @@ export function AuditLog() {
         </select>
       </div>
 
+      <div className="table-scroll">
       <table className="table">
         <thead>
           <tr>
@@ -178,6 +179,7 @@ export function AuditLog() {
           )}
         </tbody>
       </table>
+      </div>
 
       <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} />
     </div>

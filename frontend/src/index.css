@@ -660,8 +660,10 @@ a {
   padding: 20px;
 }
 
-/* Страница «Склад»: занимает высоту main, скроллится только тело таблицы */
-.warehouse-page {
+/* Страница на всю высоту main: шапка сверху, футер снизу, скроллится только таблица.
+   .warehouse-page — частный случай для страницы «Склад». */
+.warehouse-page,
+.page-fill {
   display: flex;
   flex-direction: column;
   height: 100%;

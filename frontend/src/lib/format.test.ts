@@ -10,8 +10,12 @@ describe('formatMoney', () => {
     expect(formatMoney('4750')).toMatch(/4\D?750/);
   });
 
-  it('некорректное значение → 0', () => {
-    expect(formatMoney('abc')).toBe('0');
+  it('некорректное значение → 0 ₴', () => {
+    expect(formatMoney('abc')).toBe('0 ₴');
+  });
+
+  it('добавляет символ гривны', () => {
+    expect(formatMoney(1200)).toMatch(/₴$/);
   });
 });
 

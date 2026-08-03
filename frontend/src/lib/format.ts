@@ -1,8 +1,8 @@
-// Форматирует денежное значение (строку или число) в рублёвый вид.
+// Форматирует денежное значение (строку или число) в гривневый вид: «1 200 ₴».
 export function formatMoney(value: string | number): string {
   const n = typeof value === 'string' ? Number(value) : value;
-  if (Number.isNaN(n)) return '0';
-  return n.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  if (Number.isNaN(n)) return '0 ₴';
+  return n.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' ₴';
 }
 
 // Форматирует дату-время в коротком русском виде.

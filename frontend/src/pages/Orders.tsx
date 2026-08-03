@@ -110,7 +110,7 @@ export function Orders() {
   }
 
   return (
-    <div>
+    <div className="page-fill">
       <h1 className="page-title">Заказы</h1>
 
       <div className="toolbar">

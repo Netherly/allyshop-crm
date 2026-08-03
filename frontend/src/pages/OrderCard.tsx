@@ -616,7 +616,7 @@ export function OrderCard() {
             <span>{formatMoney(subtotal)}</span>
           </div>
           <div className="order-total-row">
-            <span>Скидка, ₽</span>
+            <span>Скидка, ₴</span>
             <input
               className="input"
               style={{ width: 120 }}

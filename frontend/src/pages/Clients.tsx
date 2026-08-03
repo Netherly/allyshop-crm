@@ -134,7 +134,7 @@ export function Clients() {
   }
 
   return (
-    <div>
+    <div className="page-fill">
       <h1 className="page-title">Клиенты</h1>
 
       <div className="toolbar">
@@ -287,6 +287,7 @@ export function Clients() {
         </form>
       </Modal>
 
+      <div className="table-scroll">
       <table className="table">
         <thead>
           <tr>
@@ -347,6 +348,7 @@ export function Clients() {
           )}
         </tbody>
       </table>
+      </div>
 
       <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} />
     </div>

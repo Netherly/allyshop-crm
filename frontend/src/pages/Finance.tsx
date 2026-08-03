@@ -75,7 +75,7 @@ export function Finance() {
   }
 
   return (
-    <div>
+    <div className="page-fill">
       <h1 className="page-title">Финансы</h1>
 
       <div className="toolbar">
@@ -148,6 +148,7 @@ export function Finance() {
         </form>
       </Modal>
 
+      <div className="table-scroll">
       <table className="table">
         <thead>
           <tr>
@@ -179,6 +180,7 @@ export function Finance() {
           )}
         </tbody>
       </table>
+      </div>
 
       <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} />
     </div>
