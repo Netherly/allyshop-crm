@@ -21,6 +21,7 @@ router.get(
     if (req.query.order_type) where.order_type = String(req.query.order_type);
     if (req.query.source) where.source = String(req.query.source);
     if (req.query.payment_status) where.payment_status = String(req.query.payment_status);
+    if (req.query.client_id) where.client_id = Number(req.query.client_id);
     if (q) {
       where.OR = [
         { order_number: { contains: q, mode: 'insensitive' } },

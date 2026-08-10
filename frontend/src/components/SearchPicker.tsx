@@ -15,6 +15,8 @@ interface Props<T> {
   mapItem: (raw: T) => PickedItem;
   // доп. query-параметры запроса (по умолчанию фильтр активных)
   params?: Record<string, unknown>;
+  // создание новой сущности прямо из поиска (пункт «+ Создать «…»»)
+  onCreate?: (query: string) => Promise<PickedItem>;
 }
 
 // Универсальный поиск сущности по мере ввода (не тянет весь список сразу).
@@ -25,10 +27,12 @@ export function SearchPicker<T>({
   placeholder,
   mapItem,
   params = { status: 'active' },
+  onCreate,
 }: Props<T>) {
   const [q, setQ] = useState('');
   const [results, setResults] = useState<PickedItem[]>([]);
   const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -67,6 +71,26 @@ export function SearchPicker<T>({
     );
   }
 
+  // Показать пункт создания, если есть колбэк, введён текст и нет точного совпадения.
+  const trimmed = q.trim();
+  const exactMatch = results.some((r) => r.label.toLowerCase() === trimmed.toLowerCase());
+  const showCreate = !!onCreate && trimmed.length > 0 && !exactMatch;
+
+  async function handleCreate() {
+    if (!onCreate || creating) return;
+    setCreating(true);
+    try {
+      const created = await onCreate(trimmed);
+      onChange(created);
+      setQ('');
+      setOpen(false);
+    } catch {
+      // ошибку показывает сам onCreate (alert) — просто оставляем поле открытым
+    } finally {
+      setCreating(false);
+    }
+  }
+
   return (
     <div className="picker" ref={boxRef}>
       <input
@@ -79,7 +103,7 @@ export function SearchPicker<T>({
         }}
         onFocus={() => setOpen(true)}
       />
-      {open && results.length > 0 && (
+      {open && (results.length > 0 || showCreate) && (
         <ul className="picker__list">
           {results.map((item) => (
             <li
@@ -94,6 +118,11 @@ export function SearchPicker<T>({
               {item.label}
             </li>
           ))}
+          {showCreate && (
+            <li className="picker__item picker__item--create" onClick={handleCreate}>
+              {creating ? 'Создание…' : `+ Создать «${trimmed}»`}
+            </li>
+          )}
         </ul>
       )}
     </div>

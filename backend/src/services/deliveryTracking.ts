@@ -45,6 +45,9 @@ export async function refreshActiveDeliveries() {
         actual_delivery_date: info.actual_delivery_date ?? undefined,
         payer_type: info.payer_type ?? undefined,
         cargo_description: info.cargo_description ?? undefined,
+        cod_amount: info.cod_amount ?? undefined,
+        payment_status: info.payment_status ?? undefined,
+        payment_method: info.payment_method ?? undefined,
         last_tracked_at: now,
       },
     });

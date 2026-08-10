@@ -14,6 +14,7 @@ import { OrderCard } from '@/pages/OrderCard';
 import { Finance } from '@/pages/Finance';
 import { AuditLog } from '@/pages/AuditLog';
 import { Access } from '@/pages/Access';
+import { Tags } from '@/pages/Tags';
 import { ProtectedRoute, RequireSuperAdmin } from '@/components/ProtectedRoute';
 
 export function App() {
@@ -54,6 +55,14 @@ export function App() {
           element={
             <RequireSuperAdmin>
               <Access />
+            </RequireSuperAdmin>
+          }
+        />
+        <Route
+          path="tags"
+          element={
+            <RequireSuperAdmin>
+              <Tags />
             </RequireSuperAdmin>
           }
         />

@@ -121,6 +121,9 @@ export interface OrderDelivery {
   cargo_description: string | null;
   status_code: string | null;
   last_tracked_at: string | null;
+  cod_amount: string | null;
+  payment_status: string | null;
+  payment_method: string | null;
 }
 
 export interface Order {

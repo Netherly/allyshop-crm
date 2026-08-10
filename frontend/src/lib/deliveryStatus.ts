@@ -10,19 +10,21 @@ const ORDER_FLOW = [
   'Оплачен',
   'Собирается',
   'Отправлен',
+  'В дороге',
   'Получен',
   'Завершен',
 ];
 const TERMINAL = ['Отменен', 'Возврат', 'Завершен'];
 
 // Возвращает предлагаемый статус заказа или null (если предлагать нечего).
+// Названия статусов синхронизированы с фазами НП: в пути → «В дороге», получено → «Получен».
 export function suggestOrderStatus(code: string | null | undefined, current: string): string | null {
   const c = String(code ?? '').trim();
   if (TERMINAL.includes(current)) return null; // отменённые/возвраты/завершённые не трогаем
   if (DELIVERED.includes(c)) return current === 'Получен' ? null : 'Получен';
   if (ON_THE_WAY.includes(c)) {
     const idx = ORDER_FLOW.indexOf(current);
-    return idx >= 0 && idx < ORDER_FLOW.indexOf('Отправлен') ? 'Отправлен' : null;
+    return idx >= 0 && idx < ORDER_FLOW.indexOf('В дороге') ? 'В дороге' : null;
   }
   return null;
 }

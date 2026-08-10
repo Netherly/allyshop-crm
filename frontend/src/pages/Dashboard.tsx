@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
-import { formatMoney, productTitle } from '@/lib/format';
+import { formatMoney, productTitle, formatDateShort } from '@/lib/format';
+import { OrderStatusBadge } from '@/components/OrderStatusBadge';
+import { DeliveryStatusBadge } from '@/components/DeliveryStatusBadge';
+import { ClientPicker } from '@/components/ClientPicker';
+import { PickedItem } from '@/components/SearchPicker';
+import { OrderListItem, Paginated } from '@/types';
 import { ORDER_SOURCES, ORDER_STATUSES, ORDER_TYPES, PAYMENT_STATUSES } from '@/lib/orderConstants';
 
 // Пресеты периода → сколько дней назад (null — всё время).
@@ -32,6 +37,13 @@ interface DashboardData {
   to_pay: number;
   status_breakdown: { status: string; count: number }[];
   source_breakdown: { source: string; count: number }[];
+  delivery_breakdown: {
+    in_transit: number;
+    arrived: number;
+    delivered: number;
+    returned: number;
+    other: number;
+  };
   low_stock: {
     id: number;
     name: string;
@@ -60,6 +72,21 @@ export function Dashboard() {
   const [status, setStatus] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('');
   const [source, setSource] = useState('');
+
+  // Карточка «Клиент»: выбранный клиент и его заказы.
+  const [client, setClient] = useState<PickedItem | null>(null);
+  const [clientOrders, setClientOrders] = useState<OrderListItem[]>([]);
+
+  useEffect(() => {
+    if (!client) {
+      setClientOrders([]);
+      return;
+    }
+    api
+      .get<Paginated<OrderListItem>>('/orders', { params: { client_id: client.id, pageSize: 100 } })
+      .then((r) => setClientOrders(r.data.items))
+      .catch(() => setClientOrders([]));
+  }, [client]);
 
   const load = useCallback(() => {
     const days = PERIODS.find((p) => p.key === period)?.days ?? null;
@@ -196,6 +223,69 @@ export function Dashboard() {
         </div>
       </div>
 
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h3 style={{ marginBottom: 12 }}>Клиент — история заказов</h3>
+        <div style={{ maxWidth: 360, marginBottom: 12 }}>
+          <ClientPicker value={client} onChange={setClient} />
+        </div>
+        {client && (
+          <>
+            <div className="text-muted" style={{ marginBottom: 8 }}>
+              Заказов: {clientOrders.length} · на сумму{' '}
+              {formatMoney(clientOrders.reduce((s, o) => s + Number(o.total_amount), 0))}
+            </div>
+            <div className="table-scroll" style={{ maxHeight: 320 }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>№</th>
+                    <th>Дата</th>
+                    <th>Статус</th>
+                    <th>Оплата</th>
+                    <th>Доставка</th>
+                    <th>Сумма</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clientOrders.map((o) => (
+                    <tr
+                      key={o.id}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => navigate(`/orders/${o.id}`)}
+                    >
+                      <td>{o.order_number}</td>
+                      <td>{formatDateShort(o.order_date ?? o.created_at)}</td>
+                      <td>
+                        <OrderStatusBadge status={o.status} />
+                      </td>
+                      <td>{o.payment_status}</td>
+                      <td>
+                        {o.delivery?.ttn || o.delivery?.status_code ? (
+                          <DeliveryStatusBadge
+                            status={o.delivery.delivery_status}
+                            code={o.delivery.status_code}
+                          />
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </td>
+                      <td>{formatMoney(o.total_amount)}</td>
+                    </tr>
+                  ))}
+                  {clientOrders.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-muted">
+                        У клиента нет заказов
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+
       <div className="dashboard-cols">
         <div className="card">
           <h3 style={{ marginBottom: 12 }}>Последние заказы</h3>
@@ -214,7 +304,7 @@ export function Dashboard() {
                   <td>{o.order_number}</td>
                   <td>{o.client ?? '—'}</td>
                   <td>
-                    <span className="badge">{o.status}</span>
+                    <OrderStatusBadge status={o.status} />
                   </td>
                   <td>{formatMoney(o.total_amount)}</td>
                 </tr>
@@ -243,7 +333,7 @@ export function Dashboard() {
               {data.status_breakdown.map((s) => (
                 <tr key={s.status}>
                   <td>
-                    <span className="badge">{s.status}</span>
+                    <OrderStatusBadge status={s.status} />
                   </td>
                   <td>{s.count}</td>
                 </tr>
@@ -282,6 +372,50 @@ export function Dashboard() {
                   </td>
                 </tr>
               )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="card">
+          <h3 style={{ marginBottom: 12 }}>Доставка (Новая Почта)</h3>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Статус</th>
+                <th>Кол-во</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <span className="badge badge--blue">В пути</span>
+                </td>
+                <td>{data.delivery_breakdown.in_transit}</td>
+              </tr>
+              <tr>
+                <td>
+                  <span className="badge badge--amber">Прибыло, ждёт</span>
+                </td>
+                <td>{data.delivery_breakdown.arrived}</td>
+              </tr>
+              <tr>
+                <td>
+                  <span className="badge badge--green">Получено</span>
+                </td>
+                <td>{data.delivery_breakdown.delivered}</td>
+              </tr>
+              <tr>
+                <td>
+                  <span className="badge badge--red">Возврат / отказ</span>
+                </td>
+                <td>{data.delivery_breakdown.returned}</td>
+              </tr>
+              <tr>
+                <td>
+                  <span className="badge badge--gray">Прочее</span>
+                </td>
+                <td>{data.delivery_breakdown.other}</td>
+              </tr>
             </tbody>
           </table>
         </div>

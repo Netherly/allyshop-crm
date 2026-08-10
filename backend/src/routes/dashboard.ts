@@ -46,6 +46,7 @@ router.get(
       orderItems,
       recent,
       products,
+      deliveries,
     ] = await Promise.all([
       prisma.order.count({ where: orderWhere }),
       prisma.product.count({ where: { is_active: true } }),
@@ -78,7 +79,23 @@ router.get(
         where: { is_active: true },
         select: { id: true, name: true, article: true, size: true, color: true, model: true },
       }),
+      // доставки с ТТН (для сводки по статусам НП) — с учётом фильтра заказов
+      prisma.orderDelivery.findMany({
+        where: { ttn: { not: null }, NOT: { ttn: '' }, order: orderWhere },
+        select: { status_code: true },
+      }),
     ]);
+
+    // Сводка доставок НП по фазам (коды статусов getStatusDocuments).
+    const deliveryBuckets = { in_transit: 0, arrived: 0, delivered: 0, returned: 0, other: 0 };
+    for (const d of deliveries) {
+      const c = d.status_code ?? '';
+      if (['9', '10', '11', '14', '106'].includes(c)) deliveryBuckets.delivered += 1;
+      else if (['7', '8'].includes(c)) deliveryBuckets.arrived += 1;
+      else if (['4', '5', '41', '101'].includes(c)) deliveryBuckets.in_transit += 1;
+      else if (['2', '3', '102', '103', '104', '105', '108'].includes(c)) deliveryBuckets.returned += 1;
+      else deliveryBuckets.other += 1;
+    }
 
     const stock = await getStockMap(products.map((p) => p.id));
     const lowStock = products
@@ -118,6 +135,7 @@ router.get(
       to_pay: toPay,
       status_breakdown: statusBreakdown,
       source_breakdown: sourceBreakdown,
+      delivery_breakdown: deliveryBuckets,
       low_stock: lowStock,
       recent_orders: recent.map((o) => ({
         id: o.id,

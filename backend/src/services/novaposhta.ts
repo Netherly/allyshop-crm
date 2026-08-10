@@ -53,6 +53,15 @@ function normalizeStatusDoc(d: any, ttn: string) {
     payer_type: d.PayerType ?? null,
     cargo_description: d.CargoDescriptionString ?? null,
     np_raw_status: d.Status ?? null,
+    // Наложенный платёж: классический перевод (RedeliverySum) или постоплата (AfterpaymentOnGoodsCost).
+    cod_amount:
+      Number(d.RedeliverySum) > 0
+        ? String(d.RedeliverySum)
+        : Number(d.AfterpaymentOnGoodsCost) > 0
+          ? String(d.AfterpaymentOnGoodsCost)
+          : null,
+    payment_status: d.PaymentStatus || d.ExpressWaybillPaymentStatus || null,
+    payment_method: d.PaymentMethod || null,
   };
 }
 

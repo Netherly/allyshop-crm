@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 
@@ -17,6 +18,7 @@ const navItems: NavItem[] = [
   { to: '/audit', label: 'История', perm: 'audit.view' },
   { to: '/users', label: 'Пользователи', superAdmin: true },
   { to: '/access', label: 'Доступы', superAdmin: true },
+  { to: '/tags', label: 'Теги', superAdmin: true },
 ];
 
 // Иконка выхода (дверь со стрелкой).
@@ -32,6 +34,7 @@ function LogoutIcon() {
 
 export function Layout() {
   const { user, logout, hasPermission } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
   const items = navItems.filter((item) => {
     if (item.superAdmin) return user?.role === 'super_admin';
     if (!item.perm) return true;
@@ -39,9 +42,26 @@ export function Layout() {
     return perms.some((p) => hasPermission(p));
   });
 
+  const closeMenu = () => setMenuOpen(false);
+
   return (
     <div className="layout">
-      <aside className="sidebar">
+      {/* Верхняя панель с бургером — видна только на узких экранах (CSS) */}
+      <div className="mobile-topbar">
+        <button
+          className="burger"
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-label="Меню"
+          aria-expanded={menuOpen}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+        <div className="mobile-topbar__brand">allyshop CRM</div>
+      </div>
+
+      <aside className={menuOpen ? 'sidebar sidebar--open' : 'sidebar'}>
         <div className="sidebar__brand">allyshop CRM</div>
         <nav className="sidebar__nav">
           {items.map((item) => (
@@ -49,6 +69,7 @@ export function Layout() {
               key={item.to}
               to={item.to}
               end={item.to === '/'}
+              onClick={closeMenu}
               className={({ isActive }) => (isActive ? 'nav-link nav-link--active' : 'nav-link')}
             >
               {item.label}
@@ -65,6 +86,8 @@ export function Layout() {
           </button>
         </div>
       </aside>
+
+      {menuOpen && <div className="sidebar-backdrop" onClick={closeMenu} />}
 
       <div className="content">
         <main className="main">

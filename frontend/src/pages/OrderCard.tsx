@@ -6,6 +6,7 @@ import { ItemPicker, PickedEntity } from '@/components/ItemPicker';
 import { NpAutocomplete } from '@/components/NpAutocomplete';
 import { DeliveryStatusBadge } from '@/components/DeliveryStatusBadge';
 import { suggestOrderStatus } from '@/lib/deliveryStatus';
+import { TagSuggestions } from '@/components/TagSuggestions';
 import { PickedItem } from '@/components/SearchPicker';
 import { ClientPicker } from '@/components/ClientPicker';
 import { Modal } from '@/components/Modal';
@@ -14,6 +15,18 @@ import { useBusy } from '@/lib/useBusy';
 import { useAuth } from '@/lib/auth';
 import { ORDER_SOURCES, ORDER_STATUSES, ORDER_TYPES, PAYMENT_TYPES, PAYMENT_OUT_TYPES } from '@/lib/orderConstants';
 import { Order } from '@/types';
+
+// Подписи для полей выплаты по наложке (значения из НП).
+function paymentMethodLabel(v: string | null | undefined): string {
+  if (v === 'Cash') return 'Наличные';
+  if (v === 'NonCash') return 'Безнал';
+  return v || '—';
+}
+function paymentStatusLabel(v: string | null | undefined): string {
+  if (v === 'Payed') return 'Выплачено';
+  if (v === 'NotPayed') return 'Не выплачено';
+  return v || '—';
+}
 
 interface DraftLine {
   key: string;
@@ -95,6 +108,9 @@ export function OrderCard() {
     cargo_description: '',
     status_code: '',
     last_tracked_at: '',
+    cod_amount: '',
+    payment_status: '',
+    payment_method: '',
   });
   const [deliverySaved, setDeliverySaved] = useState(false);
   const [deliveryError, setDeliveryError] = useState('');
@@ -145,6 +161,9 @@ export function OrderCard() {
       cargo_description: d?.cargo_description ?? '',
       status_code: d?.status_code ?? '',
       last_tracked_at: d?.last_tracked_at ?? '',
+      cod_amount: d?.cod_amount ?? '',
+      payment_status: d?.payment_status ?? '',
+      payment_method: d?.payment_method ?? '',
     });
   }, [id, isNew]);
 
@@ -284,7 +303,12 @@ export function OrderCard() {
     setDeliverySaved(false);
   }
 
-  // Подтянуть данные по ТТН из API Новой Почты и заполнить форму.
+  // Сохраняет объект доставки в БД (используется при подтягивании ТТН — чтобы данные не терялись).
+  async function persistDelivery(next: typeof delivery) {
+    await api.put(`/orders/${id}/delivery`, { ...next, delivery_cost: Number(next.delivery_cost) || 0 });
+  }
+
+  // Подтянуть данные по ТТН из API Новой Почты, заполнить форму и сразу сохранить.
   function trackTtn() {
     const ttn = delivery.ttn.trim();
     if (!ttn) {
@@ -295,32 +319,38 @@ export function OrderCard() {
     track.run(async () => {
       try {
         const { data } = await api.get(`/np/track/${ttn}`);
-        setDelivery((d) => ({
-          ...d,
-          recipient_name: data.recipient_name ?? d.recipient_name,
-          recipient_phone: data.recipient_phone ?? d.recipient_phone,
-          city: data.city ?? d.city,
-          branch: data.branch ?? d.branch,
-          delivery_status: data.delivery_status ?? d.delivery_status,
-          status_code: data.status_code ?? d.status_code,
-          sender_name: data.sender_name ?? d.sender_name,
-          sender_city: data.sender_city ?? d.sender_city,
-          weight: data.weight ?? d.weight,
-          delivery_cost: data.delivery_cost != null ? String(data.delivery_cost) : d.delivery_cost,
-          scheduled_delivery_date: data.scheduled_delivery_date ?? d.scheduled_delivery_date,
-          actual_delivery_date: data.actual_delivery_date ?? d.actual_delivery_date,
-          payer_type: data.payer_type ?? d.payer_type,
-          cargo_description: data.cargo_description ?? d.cargo_description,
-        }));
-        setDeliverySaved(false);
+        const next = {
+          ...delivery,
+          recipient_name: data.recipient_name ?? delivery.recipient_name,
+          recipient_phone: data.recipient_phone ?? delivery.recipient_phone,
+          city: data.city ?? delivery.city,
+          branch: data.branch ?? delivery.branch,
+          delivery_status: data.delivery_status ?? delivery.delivery_status,
+          status_code: data.status_code ?? delivery.status_code,
+          sender_name: data.sender_name ?? delivery.sender_name,
+          sender_city: data.sender_city ?? delivery.sender_city,
+          weight: data.weight ?? delivery.weight,
+          delivery_cost: data.delivery_cost != null ? String(data.delivery_cost) : delivery.delivery_cost,
+          scheduled_delivery_date: data.scheduled_delivery_date ?? delivery.scheduled_delivery_date,
+          actual_delivery_date: data.actual_delivery_date ?? delivery.actual_delivery_date,
+          payer_type: data.payer_type ?? delivery.payer_type,
+          cargo_description: data.cargo_description ?? delivery.cargo_description,
+          cod_amount: data.cod_amount ?? delivery.cod_amount,
+          payment_status: data.payment_status ?? delivery.payment_status,
+          payment_method: data.payment_method ?? delivery.payment_method,
+        };
+        setDelivery(next);
+        await persistDelivery(next); // авто-сохранение, иначе данные пропадут при выходе
+        setDeliverySaved(true);
+        await loadOrder();
       } catch (err) {
         setDeliveryError(getApiError(err, 'Не удалось получить данные по ТТН'));
       }
     });
   }
 
-  // Обновить только данные из НП (статус, даты, отправитель и т.д.),
-  // не перезаписывая вручную введённых получателя/город/отделение.
+  // Обновить данные из НП (статус, даты, наложка и т.д.) и сохранить.
+  // Не перезаписываем вручную введённых получателя/город/отделение.
   function refreshStatus() {
     const ttn = delivery.ttn.trim();
     if (!ttn) return;
@@ -328,19 +358,25 @@ export function OrderCard() {
     track.run(async () => {
       try {
         const { data } = await api.get(`/np/track/${ttn}`);
-        setDelivery((d) => ({
-          ...d,
-          delivery_status: data.delivery_status ?? d.delivery_status,
-          status_code: data.status_code ?? d.status_code,
-          sender_name: data.sender_name ?? d.sender_name,
-          sender_city: data.sender_city ?? d.sender_city,
-          weight: data.weight ?? d.weight,
-          scheduled_delivery_date: data.scheduled_delivery_date ?? d.scheduled_delivery_date,
-          actual_delivery_date: data.actual_delivery_date ?? d.actual_delivery_date,
-          payer_type: data.payer_type ?? d.payer_type,
-          cargo_description: data.cargo_description ?? d.cargo_description,
-        }));
-        setDeliverySaved(false);
+        const next = {
+          ...delivery,
+          delivery_status: data.delivery_status ?? delivery.delivery_status,
+          status_code: data.status_code ?? delivery.status_code,
+          sender_name: data.sender_name ?? delivery.sender_name,
+          sender_city: data.sender_city ?? delivery.sender_city,
+          weight: data.weight ?? delivery.weight,
+          scheduled_delivery_date: data.scheduled_delivery_date ?? delivery.scheduled_delivery_date,
+          actual_delivery_date: data.actual_delivery_date ?? delivery.actual_delivery_date,
+          payer_type: data.payer_type ?? delivery.payer_type,
+          cargo_description: data.cargo_description ?? delivery.cargo_description,
+          cod_amount: data.cod_amount ?? delivery.cod_amount,
+          payment_status: data.payment_status ?? delivery.payment_status,
+          payment_method: data.payment_method ?? delivery.payment_method,
+        };
+        setDelivery(next);
+        await persistDelivery(next);
+        setDeliverySaved(true);
+        await loadOrder();
       } catch (err) {
         setDeliveryError(getApiError(err, 'Не удалось обновить статус'));
       }
@@ -446,7 +482,11 @@ export function OrderCard() {
           <div className="form-grid">
             <div className="field">
               <label className="field__label">Клиент (необязательно)</label>
-              <ClientPicker value={client} onChange={setClient} />
+              <ClientPicker
+                value={client}
+                onChange={setClient}
+                allowCreate={hasPermission('clients.create')}
+              />
             </div>
             <div className="field">
               <label className="field__label">Тип заказа</label>
@@ -481,7 +521,13 @@ export function OrderCard() {
             </div>
             <div className="field">
               <label className="field__label">Теги</label>
-              <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} />
+              <input
+                className="input"
+                list="ordercard-tags-dl"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+              />
+              <TagSuggestions id="ordercard-tags-dl" />
             </div>
             <div className="field field--full">
               <label className="field__label">Комментарий</label>
@@ -880,6 +926,20 @@ export function OrderCard() {
                 <div className="np-row">
                   <span className="np-row__label">Описание груза</span>
                   <span className="np-row__value">{delivery.cargo_description || '—'}</span>
+                </div>
+                <div className="np-row">
+                  <span className="np-row__label">Наложенный платёж</span>
+                  <span className="np-row__value">
+                    {delivery.cod_amount ? formatMoney(delivery.cod_amount) : '—'}
+                  </span>
+                </div>
+                <div className="np-row">
+                  <span className="np-row__label">Статус выплаты</span>
+                  <span className="np-row__value">{paymentStatusLabel(delivery.payment_status)}</span>
+                </div>
+                <div className="np-row">
+                  <span className="np-row__label">Тип выплаты</span>
+                  <span className="np-row__value">{paymentMethodLabel(delivery.payment_method)}</span>
                 </div>
               </div>
             </div>

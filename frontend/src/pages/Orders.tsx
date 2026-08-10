@@ -6,6 +6,8 @@ import { Pagination } from '@/components/Pagination';
 import { Modal } from '@/components/Modal';
 import { Spinner } from '@/components/Spinner';
 import { DeliveryStatusBadge } from '@/components/DeliveryStatusBadge';
+import { OrderStatusBadge } from '@/components/OrderStatusBadge';
+import { TagSuggestions } from '@/components/TagSuggestions';
 import { useBusy } from '@/lib/useBusy';
 import { useAuth } from '@/lib/auth';
 import { ORDER_STATUSES, ORDER_TYPES } from '@/lib/orderConstants';
@@ -112,6 +114,7 @@ export function Orders() {
   return (
     <div className="page-fill">
       <h1 className="page-title">Заказы</h1>
+      <TagSuggestions id="order-tags-dl" />
 
       <div className="toolbar">
         <input
@@ -207,6 +210,7 @@ export function Orders() {
                         <input
                           autoFocus
                           className="tag-input"
+                          list="order-tags-dl"
                           placeholder="Enter — добавить"
                           value={newTag}
                           onChange={(e) => setNewTag(e.target.value)}
@@ -245,7 +249,7 @@ export function Orders() {
                 <td>{o.order_type}</td>
                 <td>{o.items_count}</td>
                 <td>
-                  <span className="badge">{o.status}</span>
+                  <OrderStatusBadge status={o.status} />
                 </td>
                 <td>{o.payment_status}</td>
                 <td>

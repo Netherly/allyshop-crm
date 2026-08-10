@@ -32,6 +32,9 @@ export const deliverySchema = z.object({
   payer_type: optStr,
   cargo_description: optStr,
   status_code: optStr,
+  cod_amount: optStr,
+  payment_status: optStr,
+  payment_method: optStr,
 });
 
 export type DeliveryInput = z.infer<typeof deliverySchema>;

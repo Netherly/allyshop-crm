@@ -286,6 +286,11 @@ model OrderDelivery {
   status_code             String?
   last_tracked_at         DateTime? // когда последний раз тянули статус из НП
 
+  // Наложенный платёж / постоплата (доп. инфо по оплате, из НП, только чтение)
+  cod_amount              String? // сумма наложенного платежа / постоплаты
+  payment_status          String? // статус выплаты
+  payment_method          String? // тип/способ выплаты (Cash | NonCash …)
+
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 
