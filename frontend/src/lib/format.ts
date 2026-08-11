@@ -33,6 +33,11 @@ export function formatAgo(value: string | null | undefined): string {
   return `${days} дн назад`;
 }
 
+// Первая буква заглавная (для подписей типа заказа: опт → Опт).
+export function capitalize(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
 // Дата-время без года: ДД.ММ ЧЧ:ММ — для таблиц, где год не нужен.
 export function formatDateShort(value: string): string {
   const d = new Date(value);

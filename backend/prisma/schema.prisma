@@ -299,6 +299,17 @@ model OrderDelivery {
   @@map("order_delivery")
 }
 
+// Сохранённые (созданные) теги — источник автоподсказки.
+// Теги, введённые в заказе, но отсутствующие здесь, считаются разовыми (только для того заказа).
+model Tag {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("tags")
+}
+
 // История критичных действий.
 model AuditLog {
   id          Int      @id @default(autoincrement())

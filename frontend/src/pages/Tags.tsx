@@ -18,6 +18,29 @@ export function Tags() {
   const [error, setError] = useState('');
   const save = useBusy();
 
+  // Создание нового тега.
+  const [creating, setCreating] = useState(false);
+  const [createName, setCreateName] = useState('');
+  const [createError, setCreateError] = useState('');
+  const createBusy = useBusy();
+
+  function submitCreate(e: FormEvent) {
+    e.preventDefault();
+    const name = createName.trim();
+    if (!name) return;
+    setCreateError('');
+    createBusy.run(async () => {
+      try {
+        await api.post('/tags', { name });
+        setCreating(false);
+        setCreateName('');
+        await load();
+      } catch (err) {
+        setCreateError(getApiError(err, 'Не удалось создать тег'));
+      }
+    });
+  }
+
   const load = useCallback(async () => {
     const r = await api.get<TagRow[]>('/tags');
     setRows(r.data);
@@ -65,9 +88,23 @@ export function Tags() {
 
   return (
     <div className="page-fill">
-      <h1 className="page-title">Теги</h1>
+      <div className="page-header">
+        <h1 className="page-title">Теги</h1>
+        <button
+          className="btn btn--primary"
+          onClick={() => {
+            setCreateName('');
+            setCreateError('');
+            setCreating(true);
+          }}
+        >
+          Создать тег
+        </button>
+      </div>
       <div className="text-muted" style={{ marginBottom: 16 }}>
-        Все теги из заказов. Переименование и удаление применяются ко всем заказам сразу.
+        Сохранённые теги — из них берётся автоподсказка. Переименование и удаление применяются ко
+        всем заказам. Теги, введённые в заказе, но не сохранённые здесь, действуют только в своём
+        заказе.
       </div>
 
       <div className="table-scroll">
@@ -124,6 +161,30 @@ export function Tags() {
               {save.busy ? <Spinner label="Сохранение…" /> : 'Сохранить'}
             </button>
             <button className="btn" type="button" onClick={() => setEditing(null)}>
+              Отмена
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal open={creating} title="Новый тег" onClose={() => setCreating(false)}>
+        <form onSubmit={submitCreate}>
+          {createError && <div className="form-error">{createError}</div>}
+          <div className="field">
+            <label className="field__label">Название</label>
+            <input
+              className="input"
+              autoFocus
+              value={createName}
+              onChange={(e) => setCreateName(e.target.value)}
+              placeholder="например: Иван дроп"
+            />
+          </div>
+          <div className="actions">
+            <button className="btn btn--primary" type="submit" disabled={createBusy.busy}>
+              {createBusy.busy ? <Spinner label="Создание…" /> : 'Создать'}
+            </button>
+            <button className="btn" type="button" onClick={() => setCreating(false)}>
               Отмена
             </button>
           </div>

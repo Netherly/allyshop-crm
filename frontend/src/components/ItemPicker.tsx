@@ -29,8 +29,8 @@ export function ItemPicker({ value, onChange }: Props) {
     }
     const t = setTimeout(async () => {
       const [p, s] = await Promise.all([
-        api.get<Paginated<Product>>('/products', { params: { q, pageSize: 6, status: 'active' } }),
-        api.get<Paginated<ProductSet>>('/sets', { params: { q, pageSize: 4, status: 'active' } }),
+        api.get<Paginated<Product>>('/products', { params: { q, pageSize: 20, status: 'active' } }),
+        api.get<Paginated<ProductSet>>('/sets', { params: { q, pageSize: 6, status: 'active' } }),
       ]);
       const rp: PickedEntity[] = p.data.items.map((x) => ({ item_type: 'product', id: x.id, label: productTitle(x) }));
       const rs: PickedEntity[] = s.data.items.map((x) => ({ item_type: 'set', id: x.id, label: `Набор: ${x.name}` }));

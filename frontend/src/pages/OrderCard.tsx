@@ -6,7 +6,7 @@ import { ItemPicker, PickedEntity } from '@/components/ItemPicker';
 import { NpAutocomplete } from '@/components/NpAutocomplete';
 import { DeliveryStatusBadge } from '@/components/DeliveryStatusBadge';
 import { suggestOrderStatus } from '@/lib/deliveryStatus';
-import { TagSuggestions } from '@/components/TagSuggestions';
+import { TagInput } from '@/components/TagInput';
 import { PickedItem } from '@/components/SearchPicker';
 import { ClientPicker } from '@/components/ClientPicker';
 import { Modal } from '@/components/Modal';
@@ -438,12 +438,12 @@ export function OrderCard() {
     }
     try {
       if (isNew) {
-        const res = await api.post<Order>('/orders', payload);
-        navigate(`/orders/${res.data.id}`);
+        await api.post<Order>('/orders', payload);
       } else {
         await api.patch(`/orders/${id}`, payload);
-        await loadOrder();
       }
+      // После сохранения возвращаемся к списку заказов.
+      navigate('/orders');
     } catch (err) {
       setError(getApiError(err, 'Не удалось сохранить заказ'));
     }
@@ -521,13 +521,7 @@ export function OrderCard() {
             </div>
             <div className="field">
               <label className="field__label">Теги</label>
-              <input
-                className="input"
-                list="ordercard-tags-dl"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-              />
-              <TagSuggestions id="ordercard-tags-dl" />
+              <TagInput multi value={tags} onChange={setTags} placeholder="через запятую" />
             </div>
             <div className="field field--full">
               <label className="field__label">Комментарий</label>

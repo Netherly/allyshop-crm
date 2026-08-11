@@ -1,13 +1,13 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
-import { formatDateShort, formatMoney, getApiError } from '@/lib/format';
+import { formatDateShort, formatMoney, getApiError, capitalize } from '@/lib/format';
 import { Pagination } from '@/components/Pagination';
 import { Modal } from '@/components/Modal';
 import { Spinner } from '@/components/Spinner';
 import { DeliveryStatusBadge } from '@/components/DeliveryStatusBadge';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
-import { TagSuggestions } from '@/components/TagSuggestions';
+import { TagInput } from '@/components/TagInput';
 import { useBusy } from '@/lib/useBusy';
 import { useAuth } from '@/lib/auth';
 import { ORDER_STATUSES, ORDER_TYPES } from '@/lib/orderConstants';
@@ -80,8 +80,8 @@ export function Orders() {
     saveTags(o, parseTags(o.tags).filter((t) => t !== tag));
   }
 
-  async function addTag(o: OrderListItem) {
-    const t = newTag.trim();
+  async function addTag(o: OrderListItem, tagOverride?: string) {
+    const t = (tagOverride ?? newTag).trim();
     const existing = parseTags(o.tags);
     if (t && !existing.includes(t)) {
       await saveTags(o, [...existing, t]);
@@ -114,7 +114,6 @@ export function Orders() {
   return (
     <div className="page-fill">
       <h1 className="page-title">Заказы</h1>
-      <TagSuggestions id="order-tags-dl" />
 
       <div className="toolbar">
         <input
@@ -152,7 +151,7 @@ export function Orders() {
           <option value="">Все типы</option>
           {ORDER_TYPES.map((t) => (
             <option key={t} value={t}>
-              {t}
+              {capitalize(t)}
             </option>
           ))}
         </select>
@@ -207,19 +206,17 @@ export function Orders() {
                     {parseTags(o.tags).length === 0 && !canEdit && <span className="text-muted">—</span>}
                     {canEdit &&
                       (addingTagFor === o.id ? (
-                        <input
+                        <TagInput
                           autoFocus
                           className="tag-input"
-                          list="order-tags-dl"
                           placeholder="Enter — добавить"
                           value={newTag}
-                          onChange={(e) => setNewTag(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') addTag(o);
-                            if (e.key === 'Escape') {
-                              setAddingTagFor(null);
-                              setNewTag('');
-                            }
+                          onChange={setNewTag}
+                          onEnter={() => addTag(o)}
+                          onSelect={(tag) => addTag(o, tag)}
+                          onEscape={() => {
+                            setAddingTagFor(null);
+                            setNewTag('');
                           }}
                           onBlur={() => {
                             setAddingTagFor(null);

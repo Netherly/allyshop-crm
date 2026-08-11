@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
-import { formatMoney, productTitle, formatDateShort } from '@/lib/format';
+import { formatMoney, productTitle, formatDateShort, capitalize } from '@/lib/format';
 import { OrderStatusBadge } from '@/components/OrderStatusBadge';
 import { DeliveryStatusBadge } from '@/components/DeliveryStatusBadge';
 import { ClientPicker } from '@/components/ClientPicker';
@@ -125,7 +125,7 @@ export function Dashboard() {
         <option value="">Все типы</option>
         {ORDER_TYPES.map((t) => (
           <option key={t} value={t}>
-            {t}
+            {capitalize(t)}
           </option>
         ))}
       </select>

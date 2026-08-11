@@ -160,6 +160,16 @@ export function Products() {
     await load();
   }
 
+  async function removePermanently(p: Product) {
+    if (!confirm(`Удалить товар «${p.name}» навсегда? Действие необратимо.`)) return;
+    try {
+      await api.delete(`/products/${p.id}/permanent`);
+      await load();
+    } catch (err) {
+      alert(getApiError(err, 'Не удалось удалить товар'));
+    }
+  }
+
   return (
     <div className="tab-pane">
       <div className="toolbar">
@@ -369,6 +379,11 @@ export function Products() {
                           Вернуть
                         </button>
                       ))}
+                    {canDelete && (
+                      <button className="btn btn--sm btn--danger" onClick={() => removePermanently(p)}>
+                        Удалить
+                      </button>
+                    )}
                   </div>
                 </td>
               )}

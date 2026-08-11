@@ -40,15 +40,22 @@ router.get(
     if (status === 'archived') where.is_active = false;
 
     if (q) {
-      const contains: Prisma.StringFilter = { contains: q, mode: 'insensitive' };
-      where.OR = [
-        { name: contains },
-        { article: contains },
-        { barcode: contains },
-        { color: contains },
-        { model: contains },
-        { size: contains },
-      ];
+      // Многословный поиск: каждое слово должно совпасть с каким-то полем
+      // (чтобы работал запрос вида «1066 черный 50» — артикул + цвет + размер).
+      const terms = q.split(/\s+/).filter(Boolean);
+      where.AND = terms.map((term) => {
+        const contains: Prisma.StringFilter = { contains: term, mode: 'insensitive' };
+        return {
+          OR: [
+            { name: contains },
+            { article: contains },
+            { barcode: contains },
+            { color: contains },
+            { model: contains },
+            { size: contains },
+          ],
+        };
+      });
     }
 
     const pg = parsePagination(req.query);
@@ -153,7 +160,7 @@ router.patch(
   }),
 );
 
-// Архивирование (is_active=false) вместо удаления.
+// Архивирование (is_active=false) — мягкое «удаление».
 router.delete(
   '/:id',
   requirePermission('products.delete'),
@@ -162,6 +169,31 @@ router.delete(
     const product = await prisma.product.update({ where: { id }, data: { is_active: false } });
     await logAudit({ userId: req.user!.id, entityType: 'products', entityId: id, action: 'deleted' });
     res.json(product);
+  }),
+);
+
+// Полное удаление товара из БД. Возможно, только если товар нигде не используется
+// (нет строк заказов, компонентов, движений, наборов) — иначе оставляем в архиве.
+router.delete(
+  '/:id/permanent',
+  requirePermission('products.delete'),
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    const [orderItems, components, movements, setItems] = await Promise.all([
+      prisma.orderItem.count({ where: { product_id: id } }),
+      prisma.orderItemComponent.count({ where: { product_id: id } }),
+      prisma.stockMovement.count({ where: { product_id: id } }),
+      prisma.setItem.count({ where: { product_id: id } }),
+    ]);
+    if (orderItems + components + movements + setItems > 0) {
+      res.status(409).json({
+        error: 'Товар используется в заказах, движениях или наборах — удалить нельзя, оставьте в архиве',
+      });
+      return;
+    }
+    await prisma.product.delete({ where: { id } });
+    await logAudit({ userId: req.user!.id, entityType: 'products', entityId: id, action: 'deleted' });
+    res.json({ ok: true });
   }),
 );
 

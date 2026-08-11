@@ -157,7 +157,14 @@ export async function createOrder(input: CreateInput, managerId: number) {
         order_items: { create: lines },
       },
     });
-    const orderNumber = String(created.id);
+    // Номер = максимальный существующий числовой номер + 1.
+    // Так после удаления последних заказов номера переиспользуются (клиент хочет «нумерацию заново»).
+    const existing = await tx.order.findMany({ select: { order_number: true } });
+    const maxNum = existing.reduce((m, o) => {
+      const n = parseInt(o.order_number, 10);
+      return Number.isFinite(n) && n > m ? n : m;
+    }, 0);
+    const orderNumber = String(maxNum + 1);
     await tx.order.update({ where: { id: created.id }, data: { order_number: orderNumber } });
 
     await logAudit({
