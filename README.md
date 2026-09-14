@@ -14,6 +14,8 @@ frontend/   React SPA (Vite + TypeScript)
 
 - [PLAN.md](PLAN.md) — план разработки и чек-лист по этапам.
 - [DEPLOYMENT.md](DEPLOYMENT.md) — развёртывание через Docker и Vercel.
+- [DEPLOYMENT_VPS.md](DEPLOYMENT_VPS.md) — прод на своём VPS: домен, HTTPS, бэкапы.
+- [deploy/ALLYSHOP_WORK.md](deploy/ALLYSHOP_WORK.md) — продолжение деплоя для **allyshop.work** (с шага 6).
 - `tz_text.txt` — текстовая версия ТЗ.
 
 ## Быстрый старт (Docker)

@@ -7,6 +7,10 @@ coverage/
 .env
 *.env
 !*.env.example
+# прод-секреты (.env.production, .env.prod) — примеры остаются в репозитории
+.env.*
+!.env.example
+!.env.*.example
 
 # логи
 *.log

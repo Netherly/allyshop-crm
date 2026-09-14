@@ -1,0 +1,57 @@
+# Прод-стек для VPS: Postgres + API + статика фронта.
+# Переменные берутся из файла .env в этой же папке (см. .env.prod.example).
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Наружу ничего не публикуется: api и web слушают только 127.0.0.1,
+# публичный вход — nginx на хосте с TLS.
+
+name: allyshop-crm-prod
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-crm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD не задан в .env}
+      POSTGRES_DB: ${POSTGRES_DB:-allyshop}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-crm} -d ${POSTGRES_DB:-allyshop}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env.production
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Фото товаров живут на постоянном томе и переживают пересборку.
+      - uploads_data:/app/uploads
+    ports:
+      - '127.0.0.1:4000:4000'
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        VITE_API_URL: ${VITE_API_URL:?VITE_API_URL не задан в .env}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - '127.0.0.1:8080:80'
+
+volumes:
+  db_data:
+  uploads_data:

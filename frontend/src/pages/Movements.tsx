@@ -382,6 +382,7 @@ export function Movements() {
             <th>Дата</th>
             <th>Тип</th>
             <th>Товар</th>
+            <th>Артикул</th>
             <th>Кол-во</th>
             <th>Цена</th>
             <th>Сумма</th>
@@ -400,6 +401,7 @@ export function Movements() {
                   ? productTitle(m.product)
                   : m.set?.name ?? '—'}
               </td>
+              <td>{m.product?.article ?? '—'}</td>
               <td>{m.quantity}</td>
               <td>{formatMoney(m.price)}</td>
               <td>{formatMoney(m.total)}</td>
@@ -430,7 +432,7 @@ export function Movements() {
           ))}
           {items.length === 0 && (
             <tr>
-              <td colSpan={9} className="text-muted">
+              <td colSpan={10} className="text-muted">
                 Движений пока нет
               </td>
             </tr>
