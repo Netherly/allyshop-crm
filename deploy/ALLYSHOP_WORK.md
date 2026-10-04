@@ -263,21 +263,53 @@ curl -s -H "Authorization: Bearer ВАШ_CRON_SECRET" \
 
 ---
 
-## Шаг 12. Бэкапы БД (рекомендуется)
+## Шаг 12. Бэкапы в Telegram
+
+### 12.1. Создать бота и конфиг
+
+1. **@BotFather** → `/newbot` → скопировать токен.
+2. Добавить бота в чат https://t.me/c/3942258793/386 (топик «386»).
+3. На сервере:
 
 ```bash
-chmod +x /opt/allyshop-crm/deploy/backup-db.sh
+cd /opt/allyshop-crm
+cp deploy/telegram-backup.env.example deploy/telegram-backup.env
+chmod 600 deploy/telegram-backup.env
+```
+
+В `deploy/telegram-backup.env` уже прописаны chat_id и thread_id для вашего чата:
+
+```env
+TELEGRAM_BOT_TOKEN=ВСТАВЬТЕ_ТОКЕН_ОТ_BOTFATHER
+TELEGRAM_CHAT_ID=-1003942258793
+TELEGRAM_THREAD_ID=386
+```
+
+### 12.2. Проверка
+
+```bash
+chmod +x /opt/allyshop-crm/deploy/backup-db.sh /opt/allyshop-crm/deploy/backup-sources.sh
 /opt/allyshop-crm/deploy/backup-db.sh
+/opt/allyshop-crm/deploy/backup-sources.sh
+```
+
+В топик чата должны прийти два файла: дамп БД и архив исходников.
+
+### 12.3. Cron
+
+```bash
 crontab -e
 ```
 
-Добавьте:
-
 ```cron
+# БД — каждый день в 3:30
 30 3 * * * /opt/allyshop-crm/deploy/backup-db.sh >> /var/log/allyshop-backup.log 2>&1
+
+# Исходники — каждое воскресенье в 4:00
+0 4 * * 0 /opt/allyshop-crm/deploy/backup-sources.sh >> /var/log/allyshop-backup.log 2>&1
 ```
 
-Дампы: `/opt/allyshop-crm-backups/`, хранятся 14 дней.
+Локальные копии: `/opt/allyshop-crm-backups/` (БД — 14 дней, исходники — 8 недель).
 
 ---
 

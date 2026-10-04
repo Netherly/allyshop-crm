@@ -42,6 +42,38 @@ export async function deleteMovement(id: number) {
   });
 }
 
+// Выставляет остаток товара в target: считает текущий и пишет корректировку на разницу.
+// Отдельного поля остатка нет, поэтому история изменений сохраняется в журнале движений.
+export async function setProductStock(
+  input: { product_id: number; quantity: number; description?: string | null },
+  userId: number,
+) {
+  const product = await prisma.product.findUnique({ where: { id: input.product_id }, select: { id: true } });
+  if (!product) throw new AppError(404, 'Товар не найден');
+
+  return prisma.$transaction(async (tx) => {
+    const stock = await getStockMap([input.product_id], tx);
+    const before = stock.get(input.product_id) ?? 0;
+    const delta = input.quantity - before;
+    if (delta === 0) return { before, after: before, movement: null };
+
+    const note = `Установка остатка: ${before} → ${input.quantity}`;
+    const movement = await tx.stockMovement.create({
+      data: {
+        movement_date: new Date(),
+        movement_type: delta > 0 ? 'корректировка_плюс' : 'корректировка_минус',
+        product_id: input.product_id,
+        quantity: Math.abs(delta),
+        price: 0,
+        total: 0,
+        description: input.description ? `${note}. ${input.description}` : note,
+        user_id: userId,
+      },
+    });
+    return { before, after: input.quantity, movement };
+  });
+}
+
 interface BulkLine {
   item_type: 'product' | 'set';
   product_id?: number;

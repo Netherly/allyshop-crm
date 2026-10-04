@@ -50,7 +50,10 @@ backend/.env.production.example      секреты API (→ backend/.env.produc
 frontend/Dockerfile.prod             сборка Vite + nginx
 frontend/nginx.conf                  раздача SPA внутри контейнера
 deploy/nginx/allyshop-crm.conf       конфиг nginx на хосте
-deploy/backup-db.sh                  ежедневный бэкап БД
+deploy/backup-db.sh                  ежедневный бэкап БД (+ Telegram)
+deploy/backup-sources.sh           еженедельный архив исходников (+ Telegram)
+deploy/lib/telegram.sh             отправка файлов в Telegram
+deploy/telegram-backup.env.example токен бота и chat_id
 ```
 
 ---
@@ -372,21 +375,57 @@ curl -s -H "Authorization: Bearer ВАШ_CRON_SECRET" \
 
 ---
 
-## 11. Шаг 9. Бэкапы БД
+## 11. Шаг 9. Бэкапы (локально + Telegram)
+
+### 11.1. Telegram-бот
+
+1. В Telegram откройте **@BotFather** → `/newbot` → скопируйте **токен**.
+2. Добавьте бота в нужный чат и дайте право **отправлять сообщения**.
+3. На VPS создайте конфиг:
 
 ```bash
-chmod +x /opt/allyshop-crm/deploy/backup-db.sh
-/opt/allyshop-crm/deploy/backup-db.sh          # разовая проверка
+cd /opt/allyshop-crm
+cp deploy/telegram-backup.env.example deploy/telegram-backup.env
+chmod 600 deploy/telegram-backup.env
+```
+
+4. Заполните `deploy/telegram-backup.env`:
+
+| Переменная | Пример | Откуда взять |
+|---|---|---|
+| `TELEGRAM_BOT_TOKEN` | `123456:AA...` | @BotFather |
+| `TELEGRAM_CHAT_ID` | `-1003942258793` | из ссылки `t.me/c/3942258793/386` → `-100` + число |
+| `TELEGRAM_THREAD_ID` | `386` | последнее число в ссылке (топик форум-чата) |
+
+Проверка отправки:
+
+```bash
+chmod +x /opt/allyshop-crm/deploy/backup-db.sh /opt/allyshop-crm/deploy/backup-sources.sh
+/opt/allyshop-crm/deploy/backup-db.sh
+```
+
+В чат должно прийти сообщение с файлом `.sql.gz`.
+
+### 11.2. Cron: БД каждый день, исходники раз в неделю
+
+```bash
 crontab -e
 ```
 
-Добавьте ежедневный запуск в 3:30:
-
 ```cron
+# БД — каждый день в 3:30
 30 3 * * * /opt/allyshop-crm/deploy/backup-db.sh >> /var/log/allyshop-backup.log 2>&1
+
+# Исходники — каждое воскресенье в 4:00
+0 4 * * 0 /opt/allyshop-crm/deploy/backup-sources.sh >> /var/log/allyshop-backup.log 2>&1
 ```
 
-Дампы складываются в `/opt/allyshop-crm-backups`, хранятся 14 дней.
+- Дампы БД: `/opt/allyshop-crm-backups/`, хранятся **14 дней** локально.
+- Архивы исходников: там же, хранятся **8 недель** локально.
+- Копии в Telegram **не удаляются** автоматически (история в чате).
+
+> Архив исходников **не включает** `node_modules`, `dist`, фото (`uploads`) и `.env` —
+> только код проекта. Секреты (`backend/.env.production`) храните отдельно в надёжном месте.
 
 Восстановление из бэкапа:
 

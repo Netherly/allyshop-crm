@@ -14,7 +14,7 @@ import { Spinner } from '@/components/Spinner';
 import { useBusy } from '@/lib/useBusy';
 import { useAuth } from '@/lib/auth';
 import { ORDER_SOURCES, ORDER_STATUSES, ORDER_TYPES, PAYMENT_TYPES, PAYMENT_OUT_TYPES } from '@/lib/orderConstants';
-import { Order } from '@/types';
+import { Client, Order } from '@/types';
 
 // Подписи для полей выплаты по наложке (значения из НП).
 function paymentMethodLabel(v: string | null | undefined): string {
@@ -303,9 +303,39 @@ export function OrderCard() {
     setDeliverySaved(false);
   }
 
+  // В новом заказе подставляем получателя из карточки клиента, не затирая уже введённое.
+  async function pickClient(next: PickedItem | null) {
+    setClient(next);
+    if (!isNew || !next) return;
+    try {
+      const { data: c } = await api.get<Client>(`/clients/${next.id}`);
+      setDelivery((d) => ({
+        ...d,
+        recipient_name: d.recipient_name || c.name || '',
+        recipient_phone: d.recipient_phone || c.phone || '',
+        city: d.city || c.city || '',
+        branch: d.branch || c.np_branch || '',
+      }));
+    } catch {
+      // данные клиента для доставки не обязательны
+    }
+  }
+
   // Сохраняет объект доставки в БД (используется при подтягивании ТТН — чтобы данные не терялись).
+  // У нового заказа ещё нет id — доставка уйдёт вместе с созданием заказа.
   async function persistDelivery(next: typeof delivery) {
+    if (isNew) return;
     await api.put(`/orders/${id}/delivery`, { ...next, delivery_cost: Number(next.delivery_cost) || 0 });
+    setDeliverySaved(true);
+    await loadOrder();
+  }
+
+  function hasDeliveryData() {
+    const d = delivery;
+    return (
+      [d.ttn, d.recipient_name, d.recipient_phone, d.city, d.branch, d.delivery_payer].some((v) => v.trim()) ||
+      Number(d.delivery_cost) > 0
+    );
   }
 
   // Подтянуть данные по ТТН из API Новой Почты, заполнить форму и сразу сохранить.
@@ -341,8 +371,6 @@ export function OrderCard() {
         };
         setDelivery(next);
         await persistDelivery(next); // авто-сохранение, иначе данные пропадут при выходе
-        setDeliverySaved(true);
-        await loadOrder();
       } catch (err) {
         setDeliveryError(getApiError(err, 'Не удалось получить данные по ТТН'));
       }
@@ -375,8 +403,6 @@ export function OrderCard() {
         };
         setDelivery(next);
         await persistDelivery(next);
-        setDeliverySaved(true);
-        await loadOrder();
       } catch (err) {
         setDeliveryError(getApiError(err, 'Не удалось обновить статус'));
       }
@@ -386,6 +412,10 @@ export function OrderCard() {
   // Применить подсказанный статус заказа (по статусу ТТН) — одним кликом.
   async function applyOrderStatus(next: string) {
     setDeliveryError('');
+    if (isNew) {
+      setStatus(next);
+      return;
+    }
     try {
       await api.patch(`/orders/${id}`, { status: next });
       await loadOrder();
@@ -438,6 +468,9 @@ export function OrderCard() {
     }
     try {
       if (isNew) {
+        if (hasDeliveryData()) {
+          payload.delivery = { ...delivery, delivery_cost: Number(delivery.delivery_cost) || 0 };
+        }
         await api.post<Order>('/orders', payload);
       } else {
         await api.patch(`/orders/${id}`, payload);
@@ -484,7 +517,7 @@ export function OrderCard() {
               <label className="field__label">Клиент (необязательно)</label>
               <ClientPicker
                 value={client}
-                onChange={setClient}
+                onChange={pickClient}
                 allowCreate={hasPermission('clients.create')}
               />
             </div>
@@ -748,9 +781,17 @@ export function OrderCard() {
       )}
         </div>
 
-      {!isNew && order && (
-        <form className="card order-delivery" onSubmit={saveDelivery}>
+      {(isNew || order) && (
+        <form
+          className="card order-delivery"
+          onSubmit={isNew ? (e) => e.preventDefault() : saveDelivery}
+        >
           <h3 style={{ marginBottom: 12 }}>Доставка (Новая Почта)</h3>
+          {isNew && (
+            <div className="text-muted" style={{ marginBottom: 12 }}>
+              Сохранится вместе с заказом по кнопке «Создать заказ».
+            </div>
+          )}
           {deliveryError && <div className="form-error">{deliveryError}</div>}
           <div className="delivery-cols">
           <div className="form-grid">
@@ -939,12 +980,14 @@ export function OrderCard() {
             </div>
           )}
           </div>
-          <div className="actions">
-            <button className="btn btn--primary" type="submit" disabled={deliv.busy}>
-              {deliv.busy ? <Spinner label="Сохранение…" /> : 'Сохранить доставку'}
-            </button>
-            {deliverySaved && <span className="status-ok">Сохранено</span>}
-          </div>
+          {!isNew && (
+            <div className="actions">
+              <button className="btn btn--primary" type="submit" disabled={deliv.busy}>
+                {deliv.busy ? <Spinner label="Сохранение…" /> : 'Сохранить доставку'}
+              </button>
+              {deliverySaved && <span className="status-ok">Сохранено</span>}
+            </div>
+          )}
         </form>
       )}
       </div>

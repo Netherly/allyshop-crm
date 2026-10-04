@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ORDER_TYPES, ORDER_STATUSES } from '../lib/constants.js';
+import { deliverySchema } from './delivery.js';
 
 const optStr = z
   .union([z.string(), z.null(), z.undefined()])
@@ -32,6 +33,7 @@ export const createOrderSchema = z.object({
   discount_amount: z.coerce.number().min(0).default(0),
   discount_percent: z.coerce.number().min(0).max(100).default(0),
   items: z.array(orderItemSchema).min(1, 'Добавьте хотя бы одну позицию'),
+  delivery: deliverySchema.optional(),
 });
 
 export const updateOrderSchema = z.object({

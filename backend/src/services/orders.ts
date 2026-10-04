@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { AppError } from '../lib/errors.js';
 import { OrderItemInput } from '../schemas/order.js';
+import { DeliveryInput } from '../schemas/delivery.js';
 import { applyStockTransition } from './orderStock.js';
 import { logAudit } from './audit.js';
 
@@ -132,6 +133,7 @@ interface CreateInput {
   discount_amount: number;
   discount_percent: number;
   items: OrderItemInput[];
+  delivery?: DeliveryInput;
 }
 
 // Создаёт заказ со строками. order_number = id заказа (padded) — присваивается после вставки.
@@ -166,6 +168,16 @@ export async function createOrder(input: CreateInput, managerId: number) {
     }, 0);
     const orderNumber = String(maxNum + 1);
     await tx.order.update({ where: { id: created.id }, data: { order_number: orderNumber } });
+
+    if (input.delivery) {
+      await tx.orderDelivery.create({
+        data: {
+          order_id: created.id,
+          ...input.delivery,
+          ...(input.delivery.status_code ? { last_tracked_at: new Date() } : {}),
+        },
+      });
+    }
 
     await logAudit({
       client: tx,

@@ -3,8 +3,14 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireAuth, requirePermission } from '../middleware/auth.js';
-import { manualMovementSchema, updateMovementSchema, bulkMovementSchema } from '../schemas/movement.js';
-import { createManualMovement, updateMovement, createBulkMovements, deleteMovement } from '../services/stockMovements.js';
+import { manualMovementSchema, updateMovementSchema, bulkMovementSchema, setStockSchema } from '../schemas/movement.js';
+import {
+  createManualMovement,
+  updateMovement,
+  createBulkMovements,
+  deleteMovement,
+  setProductStock,
+} from '../services/stockMovements.js';
 import { parsePagination, paginated } from '../lib/pagination.js';
 import { logAudit } from '../services/audit.js';
 
@@ -90,6 +96,27 @@ router.post(
       newValue: { movement_type: data.movement_type, scanned: data.items.length },
     });
     res.status(201).json({ count: created.length });
+  }),
+);
+
+// Установка остатка товара в конкретное число (пишется корректировкой на разницу).
+router.post(
+  '/set',
+  requirePermission('stock.corrections'),
+  asyncHandler(async (req, res) => {
+    const data = setStockSchema.parse(req.body);
+    const result = await setProductStock(data, req.user!.id);
+    if (result.movement) {
+      await logAudit({
+        userId: req.user!.id,
+        entityType: 'stock',
+        entityId: data.product_id,
+        action: 'updated',
+        oldValue: { stock: result.before },
+        newValue: { stock: result.after },
+      });
+    }
+    res.json({ before: result.before, after: result.after, changed: !!result.movement });
   }),
 );
 

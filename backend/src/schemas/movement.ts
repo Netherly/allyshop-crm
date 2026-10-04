@@ -54,3 +54,12 @@ export const bulkMovementSchema = z.object({
 });
 
 export type BulkMovementInput = z.infer<typeof bulkMovementSchema>;
+
+// Установка остатка товара «как есть»: разница записывается корректировкой.
+export const setStockSchema = z.object({
+  product_id: z.coerce.number().int().positive(),
+  quantity: z.coerce.number().int().min(0, 'Остаток не может быть отрицательным'),
+  description: z.string().trim().optional().nullable(),
+});
+
+export type SetStockInput = z.infer<typeof setStockSchema>;

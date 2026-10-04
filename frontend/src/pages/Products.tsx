@@ -44,7 +44,8 @@ export function Products() {
   const canCreate = hasPermission('products.create');
   const canEdit = hasPermission('products.edit');
   const canDelete = hasPermission('products.delete');
-  const canActions = canEdit || canDelete;
+  const canSetStock = hasPermission('stock.corrections');
+  const canActions = canEdit || canDelete || canSetStock;
 
   const [products, setProducts] = useState<Product[]>([]);
   const [q, setQ] = useState('');
@@ -57,6 +58,12 @@ export function Products() {
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const save = useBusy();
+
+  const [stockProduct, setStockProduct] = useState<Product | null>(null);
+  const [stockValue, setStockValue] = useState('');
+  const [stockComment, setStockComment] = useState('');
+  const [stockError, setStockError] = useState('');
+  const stockSave = useBusy();
 
   const load = useCallback(async () => {
     const res = await api.get<Paginated<Product>>('/products', {
@@ -127,6 +134,37 @@ export function Products() {
         await load();
       } catch (err) {
         setError(getApiError(err, 'Не удалось сохранить товар'));
+      }
+    });
+  }
+
+  function startSetStock(p: Product) {
+    setStockProduct(p);
+    setStockValue(String(p.stock ?? 0));
+    setStockComment('');
+    setStockError('');
+  }
+
+  function onSubmitStock(e: FormEvent) {
+    e.preventDefault();
+    if (!stockProduct) return;
+    const quantity = Number(stockValue);
+    if (stockValue.trim() === '' || !Number.isInteger(quantity) || quantity < 0) {
+      setStockError('Укажите целое число от 0');
+      return;
+    }
+    setStockError('');
+    stockSave.run(async () => {
+      try {
+        await api.post('/stock/set', {
+          product_id: stockProduct.id,
+          quantity,
+          description: stockComment || null,
+        });
+        setStockProduct(null);
+        await load();
+      } catch (err) {
+        setStockError(getApiError(err, 'Не удалось изменить остаток'));
       }
     });
   }
@@ -325,6 +363,56 @@ export function Products() {
         </form>
       </Modal>
 
+      <Modal open={!!stockProduct} title="Установить остаток" onClose={() => setStockProduct(null)}>
+        {stockProduct && (
+          <form onSubmit={onSubmitStock}>
+            {stockError && <div className="form-error">{stockError}</div>}
+            <div className="text-muted" style={{ marginBottom: 12 }}>
+              {stockProduct.name}
+              {stockProduct.article ? ` · ${stockProduct.article}` : ''}
+              {[stockProduct.color, stockProduct.model, stockProduct.size].filter(Boolean).length > 0 &&
+                ` · ${[stockProduct.color, stockProduct.model, stockProduct.size].filter(Boolean).join(' / ')}`}
+            </div>
+            <div className="field">
+              <label className="field__label">Сейчас на складе</label>
+              <div className="input input--readonly">{stockProduct.stock}</div>
+            </div>
+            <div className="field">
+              <label className="field__label">Новый остаток *</label>
+              <input
+                className="input"
+                type="number"
+                min="0"
+                step="1"
+                autoFocus
+                value={stockValue}
+                onChange={(e) => setStockValue(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label className="field__label">Комментарий</label>
+              <input
+                className="input"
+                placeholder="например, пересчёт на складе"
+                value={stockComment}
+                onChange={(e) => setStockComment(e.target.value)}
+              />
+            </div>
+            <div className="text-muted" style={{ marginBottom: 12 }}>
+              Разница запишется в «Приход / расход» как корректировка.
+            </div>
+            <div className="actions">
+              <button className="btn btn--primary" type="submit" disabled={stockSave.busy}>
+                {stockSave.busy ? <Spinner label="Сохранение…" /> : 'Сохранить'}
+              </button>
+              <button className="btn" type="button" onClick={() => setStockProduct(null)}>
+                Отмена
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
       <div className="table-scroll">
       <table className="table">
         <thead>
@@ -364,6 +452,11 @@ export function Products() {
               {canActions && (
                 <td>
                   <div className="actions">
+                    {canSetStock && (
+                      <button className="btn btn--sm" onClick={() => startSetStock(p)}>
+                        Остаток
+                      </button>
+                    )}
                     {canEdit && (
                       <button className="btn btn--sm" onClick={() => startEdit(p)}>
                         Изменить

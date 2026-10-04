@@ -26,3 +26,6 @@ backend/prisma/*.db
 
 # загруженные файлы
 backend/uploads/
+
+# токен Telegram-бота для бэкапов (пример: deploy/telegram-backup.env.example)
+deploy/telegram-backup.env
